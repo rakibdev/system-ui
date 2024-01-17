@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "xmake build",
+      "type": "shell",
+      "group": "build",
+      "command": "xmake config --mode=debug && xmake build system-ui",
+      "presentation": {
+        "clear": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "xmake compile_commands",
+      "type": "shell",
+      "group": "build",
+      "command": "xmake project --kind=compile_commands ${workspaceFolder}",
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug",
+      "type": "lldb",
+      "request": "launch",
+      "program": "build/linux/x86_64/debug/system-ui",
+      "args": ["daemon", "start"],
+      "preLaunchTask": "xmake build"
+    }
+  ]
+}
