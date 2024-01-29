@@ -8,12 +8,13 @@
 #include <unistd.h>
 
 #include <csignal>
+#include <memory>
 
+#include "../extensions/launcher/launcher.h"
+#include "../extensions/panel/panel.h"
+#include "components/media.h"
+#include "extension.h"
 #include "glaze/json.hpp"
-#include "helpers.h"
-#include "launcher/launcher.h"
-#include "panel/panel.h"
-#include "services/media.h"
 #include "theme.h"
 
 namespace Config {
@@ -47,6 +48,7 @@ void destroy() {
 
 namespace Daemon {
 GIOChannel* channel;
+std::unique_ptr<ExtensionManager> extensionManager;
 
 void destroy(int code) {
   if (channel) {
@@ -56,11 +58,12 @@ void destroy(int code) {
   }
   Config::destroy();
   Theme::destroy();
+  extensionManager.reset();
   exit(code);
 }
 
 void handleRequest(const Request& request, int client) {
-  auto respond = [client](const std::string&& key, const std::string&& value) {
+  auto respond = [client](const std::string&& key, const std::string& value) {
     std::string content = "{ \"" + key + "\": \"" + value + "\" }";
     send(client, content.c_str(), content.size(), 0);
   };
@@ -74,24 +77,29 @@ void handleRequest(const Request& request, int client) {
       destroy(EXIT_SUCCESS);
     }
   }
-  if (request.command == "toggle") {
-    if (request.action == "panel") {
-      if (Panel::window)
-        Panel::hide();
-      else
-        Panel::open();
-      respond("info", "");
-      return;
+
+  if (request.command == "extension") {
+    if (!extensionManager) {
+      extensionManager = std::make_unique<ExtensionManager>();
+      extensionManager->add("panel", std::move(std::make_unique<Panel>()));
+      extensionManager->add("launcher",
+                            std::move(std::make_unique<Launcher>()));
     }
-    if (request.action == "launcher") {
-      if (Launcher::window)
-        Launcher::hide();
+
+    std::string error;
+    Extension* extension = extensionManager->load(request.action, error);
+    if (error.empty()) {
+      extension->running = !extension->running;
+      if (extension->running)
+        extension->create();
       else
-        Launcher::open();
+        extension->destroy();
       respond("info", "");
-      return;
-    }
+    } else
+      respond("error", error);
+    return;
   }
+
   if (request.command == "theme") {
     Theme::apply(request.value.empty() ? Theme::defaultColor : request.value);
     respond("info", "");
@@ -217,7 +225,6 @@ void initialize() {
 
   Config::apply();
   Config::watch();
-  Launcher::initialize();
 
   gtk_main();
 }

@@ -2,21 +2,7 @@
 
 #include <sstream>
 
-#include "helpers.h"
-
-GtkLayerShellEdge mapMarginToGtkLayer(Margin direction) {
-  if (direction == Margin::Top) return GTK_LAYER_SHELL_EDGE_TOP;
-  if (direction == Margin::Right) return GTK_LAYER_SHELL_EDGE_RIGHT;
-  if (direction == Margin::Bottom) return GTK_LAYER_SHELL_EDGE_BOTTOM;
-  return GTK_LAYER_SHELL_EDGE_LEFT;
-}
-
-GtkLayerShellEdge mapAlignToGtkLayer(Align value) {
-  if (value == Align::Top) return GTK_LAYER_SHELL_EDGE_TOP;
-  if (value == Align::Bottom) return GTK_LAYER_SHELL_EDGE_BOTTOM;
-  if (value == Align::End) return GTK_LAYER_SHELL_EDGE_RIGHT;
-  return GTK_LAYER_SHELL_EDGE_LEFT;
-}
+#include "utils.h"
 
 Element::~Element() {
   childrens.clear();
@@ -28,21 +14,13 @@ Element::~Element() {
   gtk_widget_destroy(widget);
 }
 
+void Element::add(std::unique_ptr<Element> &&element) {
+  gtk_container_add(GTK_CONTAINER(widget), element->widget);
+  element->visible();
+  childrens.push_back(std::move(element));
+}
+
 void Element::visible(bool value) { gtk_widget_set_visible(widget, value); }
-
-void Element::add(std::unique_ptr<Element> &&child) {
-  gtk_container_add(GTK_CONTAINER(widget), child->widget);
-  child->visible(true);
-  childrens.push_back(std::move(child));
-}
-
-void Element::showChildrens() {
-  for (const auto &child : childrens) child->visible(true);
-}
-
-void Element::hideChildrens() {
-  for (const auto &child : childrens) child->visible(false);
-}
 
 void Element::addClass(const std::string &classNames) {
   GtkStyleContext *style = gtk_widget_get_style_context(widget);
@@ -57,7 +35,7 @@ void Element::removeClass(const std::string &className) {
                                  className.c_str());
 }
 
-void Element::css(const std::string &css) {
+void Element::style(const std::string &value) {
   if (!cssProvider) {
     cssProvider = gtk_css_provider_new();
     gtk_style_context_add_provider(gtk_widget_get_style_context(widget),
@@ -65,12 +43,12 @@ void Element::css(const std::string &css) {
                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
   }
   GError *error = nullptr;
-  gtk_css_provider_load_from_data(cssProvider, css.c_str(), -1, &error);
+  gtk_css_provider_load_from_data(cssProvider, value.c_str(), -1, &error);
   if (error) {
-    Log::error("Element CSS \"" + css + "\": " + std::string(error->message));
+    Log::error("Element CSS \"" + value + "\": " + std::string(error->message));
     g_error_free(error);
   } else {
-    _css = css;
+    css = value;
   }
 }
 
@@ -181,7 +159,7 @@ void Box::spaceEvenly(bool value) {
 
 void Box::prependChild(std::unique_ptr<Element> &&child) {
   gtk_box_pack_start((GtkBox *)widget, child->widget, true, true, 0);
-  child->visible(true);
+  child->visible();
   childrens.push_back(std::move(child));
 }
 
@@ -209,7 +187,7 @@ void Icon::set(const std::string &name) {
 void Icon::file(const std::string &path) {
   GtkStyleContext *context = gtk_widget_get_style_context(widget);
   if (!gtk_style_context_has_class(context, "file")) addClass("file");
-  css("* { background-image: url(\"" + path + "\"); }");
+  style("* { background-image: url(\"" + path + "\"); }");
 }
 
 Button::Button(Type type, Variant variant, Size size) {
@@ -372,13 +350,12 @@ void FlowBox::onChildClick(const ChildCallback &callback) {
                    this);
 }
 
-FlowBoxChild *FlowBox::createChild(std::unique_ptr<Element> &&child) {
-  FlowBoxChild *wrapper;
-  auto _wrapper = std::make_unique<FlowBoxChild>();
-  wrapper = _wrapper.get();
-  wrapper->add(std::move(child));
-  add(std::move(_wrapper));
-  return wrapper;
+FlowBoxChild *FlowBox::add(std::unique_ptr<Element> &&element) {
+  auto child = std::make_unique<FlowBoxChild>();
+  auto ptr = child.get();
+  child->add(std::move(element));
+  Element::add(std::move(child));
+  return ptr;
 }
 
 EventBox::EventBox() { widget = gtk_event_box_new(); }
@@ -390,13 +367,21 @@ Window::Window(GtkWindowType type, GtkLayerShellKeyboardMode keyboardMode) {
   gtk_layer_set_keyboard_mode((GtkWindow *)widget, keyboardMode);
 }
 
-void Window::alignSelf(Align horizontal, Align vertical) {
-  gtk_layer_set_anchor((GtkWindow *)widget, mapAlignToGtkLayer(horizontal),
-                       true);
-  gtk_layer_set_anchor((GtkWindow *)widget, mapAlignToGtkLayer(vertical), true);
+GtkLayerShellEdge gtkLayerEnumFromAlign(Align value) {
+  if (value == Align::Top) return GTK_LAYER_SHELL_EDGE_TOP;
+  if (value == Align::Bottom) return GTK_LAYER_SHELL_EDGE_BOTTOM;
+  if (value == Align::End) return GTK_LAYER_SHELL_EDGE_RIGHT;
+  return GTK_LAYER_SHELL_EDGE_LEFT;
 }
 
-std::tuple<Align, Align> Window::getAlignSelf() {
+void Window::align(Align horizontal, Align vertical) {
+  gtk_layer_set_anchor((GtkWindow *)widget, gtkLayerEnumFromAlign(horizontal),
+                       true);
+  gtk_layer_set_anchor((GtkWindow *)widget, gtkLayerEnumFromAlign(vertical),
+                       true);
+}
+
+std::tuple<Align, Align> Window::align() {
   Align horizontal;
   Align vertical;
   if (gtk_layer_get_anchor((GtkWindow *)widget, GTK_LAYER_SHELL_EDGE_LEFT))
@@ -408,11 +393,6 @@ std::tuple<Align, Align> Window::getAlignSelf() {
   if (gtk_layer_get_anchor((GtkWindow *)widget, GTK_LAYER_SHELL_EDGE_BOTTOM))
     vertical = Align::Bottom;
   return std::make_tuple(horizontal, vertical);
-}
-
-void Window::margin(Margin direction, uint16_t value) {
-  gtk_layer_set_margin((GtkWindow *)widget, mapMarginToGtkLayer(direction),
-                       value);
 }
 
 Dialog::Dialog(Element *parent, Window *window)
@@ -443,8 +423,8 @@ Dialog::Dialog(Element *parent, Window *window)
   gtk_window_set_modal((GtkWindow *)widget, true);
   gtk_window_set_transient_for((GtkWindow *)widget,
                                (GtkWindow *)window->widget);
-  auto [horizontal, vertical] = window->getAlignSelf();
-  alignSelf(vertical, horizontal);
+  auto [horizontal, vertical] = window->align();
+  align(vertical, horizontal);
 }
 
 void Dialog::visible(bool value) {
@@ -486,7 +466,7 @@ Menu::Menu() { widget = gtk_menu_new(); }
 
 void Menu::add(std::unique_ptr<MenuItem> &&child) {
   gtk_menu_shell_append((GtkMenuShell *)widget, child->widget);
-  child->visible(true);
+  child->visible();
   childrens.push_back(std::move(child));
 }
 
@@ -503,7 +483,7 @@ gboolean Transition::update(gpointer data) {
     _this->element->size(_this->current.width, _this->current.height);
     return G_SOURCE_CONTINUE;
   } else {
-    _this->element->showChildrens();
+    for (const auto &child : _this->element->childrens) child->visible();
     _this->element->size(-1, -1);  // revert dynamic sizing
     _this->finishCallback();
     return G_SOURCE_REMOVE;
@@ -517,7 +497,7 @@ void Transition::to(Frame to, const std::function<void()> &onFinish) {
     current.width = gtk_widget_get_allocated_width(element->widget);
     current.height = gtk_widget_get_allocated_height(element->widget);
     // children prevents parent size change. so hide while transitioning.
-    element->hideChildrens();
+    for (const auto &child : element->childrens) child->visible(false);
   }
   finishCallback = onFinish;
   currentSteps = duration / timeoutMs;

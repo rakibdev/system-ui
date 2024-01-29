@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "../helpers.h"
+#include "../utils.h"
 
 BluetoothDevice &findOrCreateDevice(const std::string &path,
                                     std::vector<BluetoothDevice> &devices) {

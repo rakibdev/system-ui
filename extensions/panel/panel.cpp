@@ -6,12 +6,12 @@
 #include <numeric>
 #include <sstream>
 
-#include "../element.h"
-#include "../helpers.h"
-#include "../services/audio.h"
-#include "../services/bluetooth.h"
-#include "../services/hyprland.h"
-#include "../services/network.h"
+#include "../../src/components/audio.h"
+#include "../../src/components/bluetooth.h"
+#include "../../src/components/hyprland.h"
+#include "../../src/components/network.h"
+#include "../../src/element.h"
+#include "../../src/utils.h"
 #include "media-controls.h"
 #include "notifications.h"
 
@@ -171,10 +171,10 @@ void update() {
 }
 
 void create() {
-  dialog = std::make_unique<Dialog>(Panel::body, Panel::window.get());
-  auto label = std::make_unique<Label>();
-  dialog->body->add(std::move(label));
-  dialog->visible(true);
+  // dialog = std::make_unique<Dialog>(Panel::body, Panel::window.get());
+  // auto label = std::make_unique<Label>();
+  // dialog->body->add(std::move(label));
+  // dialog->visible();
 }
 
 void destroy() { dialog.reset(); }
@@ -212,7 +212,7 @@ std::unique_ptr<EventBox> create() {
   auto _tile = std::make_unique<Tile>();
   tile = _tile.get();
   tile->endIcon->set("keyboard_arrow_right");
-  tile->onClick(AudioDialog::create);
+  // tile->onClick(AudioDialog::create);
 
   auto eventBox = std::make_unique<EventBox>();
   eventBox->onScroll(onScoll);
@@ -225,15 +225,17 @@ namespace NightLightTile {
 Tile *tile;
 
 void update() {
-  Hyprland::Response response =
-      Hyprland::request("getoption decoration:screen_shader");
-  if (!response.error.empty()) {
+  std::string error;
+  std::string response =
+      Hyprland::request("getoption decoration:screen_shader", error);
+  if (!error.empty()) {
     tile->disabled(true);
-    return Log::error("Night Light tile unavailable: " + response.error);
+    // todo: set tooltip of error.
+    return Log::error("Night Light tile unavailable: " + error);
   }
 
   std::string value;
-  std::istringstream iss(response.info);
+  std::istringstream iss(response);
   std::string line;
   std::string prefix = "str: \"";
   while (std::getline(iss, line)) {
@@ -250,13 +252,15 @@ void update() {
 }
 
 void onClick() {
-  Hyprland::Response response = Hyprland::request(
+  std::string error;
+  std::string response = Hyprland::request(
       "keyword decoration:screen_shader " +
-      (tile->active ? RESET_SHADER_FILE : NIGHT_LIGHT_SHADER_FILE));
-  if (response.info == "ok")
+          (tile->active ? RESET_SHADER_FILE : NIGHT_LIGHT_SHADER_FILE),
+      error);
+  if (response == "ok")
     update();
-  else if (!response.error.empty())
-    Log::error("Night Light toggle: " + response.error);
+  else if (!error.empty())
+    Log::error("Night Light toggle: " + error);
 }
 
 std::unique_ptr<Tile> create() {
@@ -351,11 +355,10 @@ struct Sensor {
 };
 std::vector<Sensor> getTemperatureSensors() {
   std::vector<Sensor> result;
-  std::string sensorsDir = "/sys/class/hwmon";
-
-  for (const auto &entry : std::filesystem::directory_iterator(sensorsDir)) {
-    if (entry.is_directory()) {
-      std::string sensorPath = entry.path();
+  for (const auto &it :
+       std::filesystem::directory_iterator("/sys/class/hwmon")) {
+    if (it.is_directory()) {
+      std::string sensorPath = it.path();
       std::ifstream nameFile(sensorPath + "/name");
       std::ifstream tempFile(sensorPath + "/temp1_input");
       if (nameFile && tempFile) {
@@ -477,24 +480,15 @@ std::unique_ptr<Button> create() {
 }
 }
 
-namespace Panel {
-std::unique_ptr<Window> window;
-std::unique_ptr<Transition> transition;
-Transition::Frame collapsed = {24, 24};
-Transition::Frame expanded = {340, -1};
-Box *body;
-
-static int intervalUpdate = 0;
-
 void update() {
   CpuTile::update();
   RamTile::update();
   MediaControls::updateSliders();
 }
 
-void beforeExpandStart() {
+void Panel::beforeExpandStart() {
   window->addClass("expanded");
-  body->showChildrens();
+  for (const auto &child : body->childrens) child->visible();
 
   MediaControls::listen();
   NetworkTile::listen();
@@ -503,7 +497,7 @@ void beforeExpandStart() {
   Uptime::update();
   Time::update();
   update();
-  intervalUpdate = g_timeout_add(
+  updateTimer = g_timeout_add(
       1000,
       [](gpointer data) -> gboolean {
         update();
@@ -512,25 +506,25 @@ void beforeExpandStart() {
       nullptr);
 }
 
-void beforeCollapseStart() {
-  if (intervalUpdate > 0) {
-    g_source_remove(intervalUpdate);
-    intervalUpdate = 0;
+void Panel::beforeCollapseStart() {
+  if (updateTimer > 0) {
+    g_source_remove(updateTimer);
+    updateTimer = 0;
   };
   MediaControls::destroy();
   NetworkTile::destroy();
   BluetoothTile::destroy();
 }
 
-void onExpand() { body->size(expanded.width, -1); }
+void Panel::onExpand() { body->size(expanded.width, -1); }
 
-void onCollapse() {
-  body->hideChildrens();
+void Panel::onCollapse() {
+  for (const auto &child : body->childrens) child->visible(false);
   body->size(collapsed.width, collapsed.height);
   window->removeClass("expanded");
 }
 
-void expand(bool value) {
+void Panel::expand(bool value) {
   if (value) {
     beforeExpandStart();
 
@@ -538,14 +532,14 @@ void expand(bool value) {
     gtk_widget_get_preferred_height(body->widget, nullptr, &height);
     expanded.height = height;
 
-    transition->to(expanded, onExpand);
+    transition->to(expanded, [this]() { onExpand(); });
   } else {
     beforeCollapseStart();
-    transition->to(collapsed, onCollapse);
+    transition->to(collapsed, [this]() { onCollapse(); });
   }
 }
 
-void open() {
+void Panel::create() {
   auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
   body = _body.get();
   body->addClass("body");
@@ -556,10 +550,10 @@ void open() {
     grid->columns(2);
     grid->add(std::move(RamTile::create()));
     grid->add(std::move(CpuTile::create()));
-    grid->createChild(std::move(NetworkTile::create()));
-    grid->createChild(std::move(BluetoothTile::create()));
-    grid->createChild(std::move(AudioTile::create()));
-    grid->createChild(std::move(NightLightTile::create()));
+    grid->add(std::move(NetworkTile::create()));
+    grid->add(std::move(BluetoothTile::create()));
+    grid->add(std::move(AudioTile::create()));
+    grid->add(std::move(NightLightTile::create()));
     body->add(std::move(grid));
   }
   {
@@ -597,16 +591,16 @@ void open() {
   container->add(std::move(_body));
 
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
-  window->alignSelf(Align::End, Align::Top);
+  window->align(Align::End, Align::Top);
   window->addClass("panel");
-  window->onHover([](bool self) {
+  window->onHover([this](bool self) {
     if (self) expand(true);
   });
-  window->onHoverOut([](bool self) {
+  window->onHoverOut([this](bool self) {
     if (self) expand(false);
   });
   window->add(std::move(container));
-  window->visible(true);
+  window->visible();
 
   onCollapse();
   transition = std::make_unique<Transition>(body);
@@ -615,7 +609,7 @@ void open() {
   Notifications::initialize();
 }
 
-void hide() {
+void Panel::destroy() {
   // Audio::initialize();
   // Audio::onChange([]() {
   //   AudioTile::update();
@@ -625,5 +619,4 @@ void hide() {
   Notifications::destroy();
   transition.reset();
   window.reset();
-}
 }

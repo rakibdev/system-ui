@@ -1,5 +1,4 @@
-#ifndef ELEMENT_H
-#define ELEMENT_H
+#pragma once
 
 #include <gtk-layer-shell.h>
 #include <gtk/gtk.h>
@@ -10,25 +9,23 @@
 
 enum class Align { Top, Bottom, Start, End, Center };
 enum class ScrollDirection { Up, Down };
-enum class Margin { Top, Right, Bottom, Left };
 
 class Element {
   GtkCssProvider *cssProvider = nullptr;
 
  public:
-  // diamond problem causes undefined behaivour without virtual destructor.
+  // virtual destructor fixes diamond problem undefined behaivour.
   virtual ~Element();
 
   GtkWidget *widget;
-  std::string _css;
   std::vector<std::unique_ptr<Element>> childrens;
-  virtual void visible(bool value);
-  void add(std::unique_ptr<Element> &&child);
-  void hideChildrens();
-  void showChildrens();
+  std::string css;
+
+  void add(std::unique_ptr<Element> &&element);
+  virtual void visible(bool value = true);
   void addClass(const std::string &classNames);
   void removeClass(const std::string &className);
-  void css(const std::string &css);
+  void style(const std::string &value);
   void size(int16_t width, int16_t height);
   void tooltip(const std::string &text);
   void focus();
@@ -158,7 +155,7 @@ class FlowBox : public Element {
   void spaceEvenly(bool value);
   void columns(std::uint8_t value);
   void onChildClick(const ChildCallback &callback);
-  FlowBoxChild *createChild(std::unique_ptr<Element> &&child);
+  FlowBoxChild *add(std::unique_ptr<Element> &&element);
 };
 
 class EventBox : public PointerEvents,
@@ -173,9 +170,8 @@ class Window : public EventBox {
  public:
   Window(GtkWindowType type, GtkLayerShellKeyboardMode keyboardMode =
                                  GTK_LAYER_SHELL_KEYBOARD_MODE_NONE);
-  void alignSelf(Align horizontal, Align vertical);
-  std::tuple<Align, Align> getAlignSelf();
-  void margin(Margin direction, uint16_t value);
+  void align(Align horizontal, Align vertical);
+  std::tuple<Align, Align> align();
 };
 
 class Dialog : public Window {
@@ -200,7 +196,7 @@ class Menu : public Element {
  public:
   Menu();
   void add(std::unique_ptr<MenuItem> &&child);
-  void visible(bool value) override;
+  void visible(bool value = true) override;
 };
 
 class Transition {
@@ -223,5 +219,3 @@ class Transition {
   void to(Frame to, const std::function<void()> &onFinish);
   Transition(Element *element);
 };
-
-#endif

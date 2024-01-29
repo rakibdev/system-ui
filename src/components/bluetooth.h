@@ -1,5 +1,4 @@
-#ifndef BLUETOOTH_H
-#define BLUETOOTH_H
+#pragma once
 
 #include <gio/gio.h>
 
@@ -57,5 +56,3 @@ class BluetoothController {
   void enable(bool value);
   void connect(BluetoothDevice& device);
 };
-
-#endif

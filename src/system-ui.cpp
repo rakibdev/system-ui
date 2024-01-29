@@ -1,20 +1,22 @@
 #include <iostream>
 
 #include "daemon.h"
-#include "helpers.h"
 #include "theme.h"
+#include "utils.h"
 
 void usage() {
   std::string output;
   auto addLine = [&output](const std::string& command,
                            const std::string& action = "",
-                           const std::string& value = "") {
+                           const std::string& value = "",
+                           const std::string& description = "") {
     output += "\n" + std::string(Log::blue) + command;
     if (action != "") output += "  " + std::string(Log::green) + action;
     if (value != "") output += "  " + std::string(Log::pink) + value;
   };
   addLine("daemon", "start|stop");
-  addLine("toggle", "panel|launcher");
+  addLine("extension", "panel|launcher|custom|custom.so|libcustom.so", "",
+          "Create or destroy an extension.");
   addLine("theme", "color", "\"#67abe8\"|image.png");
   addLine("media", "play-pause|next|previous");
   addLine("     ", "progress 0-100");
@@ -23,6 +25,7 @@ void usage() {
   addLine("Daemon logs: ", LOG_FILE);
   addLine("App data: ", APP_DATA_FILE);
   addLine("Icons: ", THEMED_ICONS);
+  addLine("Extensions: ", EXTENSIONS_DIR);
   std::cout << output + "\n" << std::endl;
 }
 

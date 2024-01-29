@@ -4,10 +4,10 @@
 
 #include <filesystem>
 
-#include "helpers.h"
-#include "libs/material-color-utilities/cpp/cam/hct.h"
-#include "libs/material-color-utilities/cpp/quantize/celebi.h"
-#include "libs/material-color-utilities/cpp/score/score.h"
+#include "../libs/material-color-utilities/cpp/cam/hct.h"
+#include "../libs/material-color-utilities/cpp/quantize/celebi.h"
+#include "../libs/material-color-utilities/cpp/score/score.h"
+#include "utils.h"
 
 using material_color_utilities::Hct;
 

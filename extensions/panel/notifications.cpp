@@ -1,6 +1,6 @@
 #include "notifications.h"
 
-#include "../services/notifications.h"
+#include "../../src/components/notifications.h"
 
 namespace Notifications {
 Box* container;

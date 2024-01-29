@@ -1,5 +1,4 @@
-#ifndef DAEMON_H
-#define DAEMON_H
+#pragma once
 
 #include <string>
 
@@ -16,5 +15,3 @@ struct Response {
 Response request(const Request& request);
 void initialize();
 }
-
-#endif

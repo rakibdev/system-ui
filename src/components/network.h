@@ -1,5 +1,4 @@
-#ifndef NETWORK_H
-#define NETWORK_H
+#pragma once
 
 #include <gio/gio.h>
 
@@ -38,5 +37,3 @@ class Network {
   Ethernet ethernet;
   void onChange(const std::function<void()> &callback);
 };
-
-#endif

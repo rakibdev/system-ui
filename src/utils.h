@@ -1,5 +1,4 @@
-#ifndef HELPERS_H
-#define HELPERS_H
+#pragma once
 
 #include <fstream>
 #include <functional>
@@ -11,6 +10,7 @@ extern const std::string LOG_FILE;
 extern const std::string HOME;
 extern const std::string APP_DATA_FILE;
 extern const std::string CONFIG_FILE;
+extern const std::string EXTENSIONS_DIR;
 extern const std::string CSS_FILE;
 extern const std::string THEMED_ICONS;
 extern const std::string NIGHT_LIGHT_SHADER_FILE;
@@ -54,5 +54,3 @@ class Debouncer {
   ~Debouncer();
   void call();
 };
-
-#endif

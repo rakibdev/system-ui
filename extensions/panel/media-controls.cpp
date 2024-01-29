@@ -1,8 +1,8 @@
 #include "media-controls.h"
 
-#include "../helpers.h"
-#include "../services/media.h"
-#include "../theme.h"
+#include "../../src/components/media.h"
+#include "../../src/theme.h"
+#include "../../src/utils.h"
 
 class Player {
   Box *body;
@@ -75,10 +75,10 @@ class Player {
            "; }";
     gtk_css_provider_load_from_data(cssProvider, css.c_str(), -1, nullptr);
 
-    button->css("@define-color primary_40 " + theme["primary_40"] +
-                "; @define-color primary_surface " + theme["primary_surface"] +
-                ";");
-    artist->css(".artist { color: " + theme["neutral_20"] + "; }");
+    button->style("@define-color primary_40 " + theme["primary_40"] +
+                  "; @define-color primary_surface " +
+                  theme["primary_surface"] + ";");
+    artist->style(".artist { color: " + theme["neutral_20"] + "; }");
   }
 
   void update() {
@@ -92,7 +92,7 @@ class Player {
     if (controller->status == PlayerController::Playing) {
       button->setContent("pause");
       if (lastArtUrl != controller->artUrl) {
-        body->visible(true);
+        body->visible();
         title->set(controller->title);
         artist->set(controller->artist);
         updateTheme();

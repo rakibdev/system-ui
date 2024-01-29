@@ -5,7 +5,7 @@
       "label": "xmake build",
       "type": "shell",
       "group": "build",
-      "command": "xmake config --mode=debug && xmake build system-ui",
+      "command": "xmake config --mode=debug && xmake build",
       "presentation": {
         "clear": true,
         "showReuseMessage": false

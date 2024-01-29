@@ -1,5 +1,4 @@
-#ifndef NOTIFICATIONS_H
-#define NOTIFICATIONS_H
+#pragma once
 
 #include <gio/gio.h>
 
@@ -42,5 +41,3 @@ class NotificationManager {
   void invoke(uint index, const std::string &action);
   std::function<void()> onChange;
 };
-
-#endif

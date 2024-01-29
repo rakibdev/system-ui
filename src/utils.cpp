@@ -1,4 +1,4 @@
-#include "helpers.h"
+#include "utils.h"
 
 #include <glib.h>
 #include <spawn.h>
@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <iostream>
 
-#include "glaze/core/common.hpp"
 #include "glaze/json.hpp"
 
 const std::string SOCKET_FILE = "/tmp/system-ui/daemon.sock";
@@ -15,6 +14,7 @@ const std::string LOG_FILE = "/tmp/system-ui/daemon.log";
 const std::string HOME = std::getenv("HOME");
 const std::string APP_DATA_FILE = HOME + "/.config/system-ui/app-data.json";
 const std::string CONFIG_FILE = HOME + "/.config/system-ui/system-ui.json";
+const std::string EXTENSIONS_DIR = HOME + "/.config/system-ui/extensions";
 const std::string CSS_FILE = HOME + "/.config/system-ui/system-ui.css";
 const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
 const std::string NIGHT_LIGHT_SHADER_FILE =

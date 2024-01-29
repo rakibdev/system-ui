@@ -1,9 +1,8 @@
-#ifndef THEME_H
-#define THEME_H
+#pragma once
 
 #include <memory>
 
-#include "helpers.h"
+#include "utils.h"
 
 uint32_t argbFromHex(const std::string& hex);
 std::string hexFromArgb(uint32_t argb);
@@ -27,5 +26,3 @@ AppData::Theme& getOrCreate(const std::string& color = "");
 void apply(const std::string& color = "");
 void destroy();
 }
-
-#endif

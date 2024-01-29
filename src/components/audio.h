@@ -1,12 +1,12 @@
-#ifndef AUDIO_H
-#define AUDIO_H
+#pragma once
+
 #include <pipewire/pipewire.h>
 
 #include <iostream>
 #include <memory>
 #include <vector>
 
-#include "../helpers.h"
+#include "../utils.h"
 
 namespace Audio {
 // audio/sink
@@ -40,5 +40,3 @@ void volume(Node *node, uint16_t cubicVolumePercent);
 void initialize();
 void destroy();
 }
-
-#endif

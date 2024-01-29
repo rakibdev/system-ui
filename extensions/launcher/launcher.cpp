@@ -2,23 +2,14 @@
 
 #include <filesystem>
 
-#include "../helpers.h"
-#include "../theme.h"
+#include "../../src/theme.h"
+#include "../../src/utils.h"
 
 const std::string APPLICATIONS = "/usr/share/applications";
 const std::string USER_APPLICATIONS = HOME + "/.local/share/applications";
-struct App {
-  std::string file;
-  std::string label;
-  std::string icon;
-  std::string color;
-  std::string command;
-  FlowBoxChild* element;
-};
-std::vector<App> apps;
 
 namespace Pinned {
-void intialize() {
+void intialize(const std::vector<App>& apps) {
   auto& pinned = AppData::get().pinnedApps;
   if (pinned.empty()) return;
 
@@ -51,14 +42,7 @@ void toggle(const std::string& file) {
 }
 }
 
-namespace Launcher {
-std::unique_ptr<Window> window;
-std::unique_ptr<Menu> menu;
-Input* input;
-FlowBox* pinnedGrid;
-FlowBox* grid;
-
-std::string stripFieldCodes(std::string exec) {
+std::string stripFieldCodes(std::string&& exec) {
   std::vector<std::string> codes = {"%f", "%F", "%u", "%U", "%d", "%D", "%n",
                                     "%N", "%i", "%c", "%k", "%v", "%m"};
   for (const auto& code : codes) {
@@ -78,59 +62,55 @@ void loadIcon(App& app) {
   app.color = theme["primary_40"];
 }
 
-void loadApps(const std::string& directory) {
-  for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".desktop") {
-      App app;
-      app.file = entry.path().string();
-      std::ifstream file(app.file);
-      std::string line;
-      bool hidden = false;
-      while (std::getline(file, line)) {
-        if (line.starts_with("[") && line != "[Desktop Entry]") break;
-        if (line.starts_with("Name=")) app.label = line.substr(5);
-        if (line.starts_with("Icon=")) {
-          app.icon = line.substr(5);
-          loadIcon(app);
-        };
-        if (line.starts_with("Exec="))
-          app.command = stripFieldCodes(line.substr(5));
-        if (line.starts_with("NoDisplay=")) hidden = line == "NoDisplay=true";
-      }
-      if (hidden) continue;
+void loadApps(std::vector<App>& apps, const std::string& directory) {
+  for (const auto& it : std::filesystem::directory_iterator(directory)) {
+    bool desktopFile =
+        it.is_regular_file() && it.path().extension() == ".desktop";
+    if (!desktopFile) continue;
 
-      bool override = false;
-      for (App& current : apps) {
-        override = current.file.ends_with(entry.path().filename().string());
-        if (override) {
-          current.file = app.file;
-          if (!app.label.empty()) current.label = app.label;
-          if (!app.icon.empty() && current.icon != app.icon) {
-            current.icon = app.icon;
-            loadIcon(current);
-          }
-          if (!app.command.empty()) current.command = app.command;
-          break;
-        }
-      }
-
-      if (!override) apps.push_back(app);
+    App app;
+    app.file = it.path().string();
+    std::ifstream file(app.file);
+    std::string line;
+    bool hidden = false;
+    while (std::getline(file, line)) {
+      if (line.starts_with("[") && line != "[Desktop Entry]") break;
+      if (line.starts_with("Name=")) app.label = line.substr(5);
+      if (line.starts_with("Icon=")) {
+        app.icon = line.substr(5);
+        loadIcon(app);
+      };
+      if (line.starts_with("Exec="))
+        app.command = stripFieldCodes(line.substr(5));
+      if (line.starts_with("NoDisplay=")) hidden = line == "NoDisplay=true";
     }
+    if (hidden) continue;
+
+    bool override = false;
+    for (App& current : apps) {
+      override = current.file.ends_with(it.path().filename().string());
+      if (override) {
+        current.file = app.file;
+        if (!app.label.empty()) current.label = app.label;
+        if (!app.icon.empty() && current.icon != app.icon) {
+          current.icon = app.icon;
+          loadIcon(current);
+        }
+        if (!app.command.empty()) current.command = app.command;
+        break;
+      }
+    }
+
+    if (!override) apps.push_back(app);
   }
 }
 
-void launch(const std::string& command) {
-  hide();
+void Launcher::launch(const std::string& command) {
+  destroy();
   runInNewProcess(command);
 }
 
-bool matchSearch(std::string text, std::string query) {
-  std::transform(text.begin(), text.end(), text.begin(), ::tolower);
-  std::transform(query.begin(), query.end(), query.begin(), ::tolower);
-  return text.contains(query);
-}
-
-void openMenu(App& app, GdkEventButton* event) {
+void Launcher::openContextMenu(App& app, GdkEventButton* event) {
   if (menu)
     menu->childrens.clear();
   else {
@@ -140,7 +120,7 @@ void openMenu(App& app, GdkEventButton* event) {
     auto item = Pinned::is(app.file)
                     ? std::make_unique<MenuItem>("Unpin", "cancel")
                     : std::make_unique<MenuItem>("Pin", "push_pin");
-    item->onClick([&app]() {
+    item->onClick([&app, this]() {
       Pinned::toggle(app.file);
       update();
     });
@@ -148,19 +128,22 @@ void openMenu(App& app, GdkEventButton* event) {
   }
   {
     auto item = std::make_unique<MenuItem>("Open folder", "folder_open");
-    item->onClick([&app]() {
+    item->onClick([&app, this]() {
       launch("xdg-open " +
              std::filesystem::path(app.file).parent_path().string());
     });
     menu->add(std::move(item));
   }
-  menu->visible(true);
+  menu->visible();
 }
 
-void update(bool sort) {
-  pinnedGrid->childrens.clear();
-  grid->childrens.clear();
+bool searchQuery(std::string text, std::string query) {
+  std::transform(text.begin(), text.end(), text.begin(), ::tolower);
+  std::transform(query.begin(), query.end(), query.begin(), ::tolower);
+  return text.contains(query);
+}
 
+void Launcher::update(bool sort) {
   if (sort) {
     auto& pinned = AppData::get().pinnedApps;
     std::sort(apps.begin(), apps.end(),
@@ -180,13 +163,16 @@ void update(bool sort) {
               });
   }
 
+  pinnedGrid->childrens.clear();
+  grid->childrens.clear();
+
   for (auto& app : apps) {
-    if (!input->value().empty() && !matchSearch(app.label, input->value()))
+    if (!input->value().empty() && !searchQuery(app.label, input->value()))
       continue;
 
     auto icon = std::make_unique<Icon>();
     icon->file(app.icon);
-    icon->css("@define-color primary_40 " + app.color + "; " + icon->_css);
+    icon->style("@define-color primary_40 " + app.color + "; " + icon->css);
     gtk_widget_set_halign(icon->widget, GTK_ALIGN_CENTER);
 
     auto label = std::make_unique<Label>();
@@ -200,14 +186,14 @@ void update(bool sort) {
     auto eventBox = std::make_unique<EventBox>();
     eventBox->onHover([&app](bool) { app.element->addClass("hover"); });
     eventBox->onHoverOut([&app](bool) { app.element->removeClass("hover"); });
-    eventBox->onPointerDown([&app](GdkEventButton* event) {
-      if (event->button == GDK_BUTTON_SECONDARY) openMenu(app, event);
+    eventBox->onPointerDown([&app, this](GdkEventButton* event) {
+      if (event->button == GDK_BUTTON_SECONDARY) openContextMenu(app, event);
     });
     eventBox->add(std::move(box));
 
     FlowBoxChild* child = Pinned::is(app.file)
-                              ? pinnedGrid->createChild(std::move(eventBox))
-                              : grid->createChild(std::move(eventBox));
+                              ? pinnedGrid->add(std::move(eventBox))
+                              : grid->add(std::move(eventBox));
     child->addClass("app");
     app.element = child;
   }
@@ -215,10 +201,10 @@ void update(bool sort) {
   pinnedGrid->visible(!pinnedGrid->childrens.empty());
 }
 
-std::unique_ptr<FlowBox> createGrid() {
+std::unique_ptr<FlowBox> Launcher::createGrid() {
   auto grid = std::make_unique<FlowBox>();
   grid->columns(3);
-  grid->onChildClick([](GtkFlowBoxChild* child) {
+  grid->onChildClick([this](GtkFlowBoxChild* child) {
     for (auto& app : apps) {
       if (child == (GtkFlowBoxChild*)app.element->widget) {
         launch(app.command);
@@ -229,7 +215,7 @@ std::unique_ptr<FlowBox> createGrid() {
   return grid;
 }
 
-void open() {
+void Launcher::create() {
 #ifdef DEV
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
 #else
@@ -237,47 +223,48 @@ void open() {
                                     GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
 #endif
   window->addClass("launcher");
-  window->visible(true);
-  window->onKeyDown([](GdkEventKey* event) {
-    if (event->keyval == GDK_KEY_Escape) hide();
+  window->visible();
+  window->onKeyDown([this](GdkEventKey* event) {
+    if (event->keyval == GDK_KEY_Escape) destroy();
   });
 
   auto body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
   body->addClass("body");
   body->size(400, 500);
-
   {
-    auto field = std::make_unique<Box>();
-    field->addClass("search");
+    auto search = std::make_unique<Box>();
+    search->addClass("search");
 
     auto icon = std::make_unique<Icon>();
     icon->addClass("start-icon");
     icon->set("search");
-    field->add(std::move(icon));
+    search->add(std::move(icon));
 
     auto _input = std::make_unique<Input>();
     input = _input.get();
-    input->onChange([] { update(false); });
-    input->onSubmit([]() {
+    input->onChange([this] { update(false); });
+    input->onSubmit([this]() {
       if (pinnedGrid->childrens.size())
         gtk_widget_activate(pinnedGrid->childrens[0]->widget);
       else if (grid->childrens.size())
         gtk_widget_activate(grid->childrens[0]->widget);
     });
-    field->add(std::move(_input));
-    body->add(std::move(field));
+    search->add(std::move(_input));
+
+    body->add(std::move(search));
   }
   {
+    auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+
     auto _pinnedGrid = createGrid();
     pinnedGrid = _pinnedGrid.get();
     pinnedGrid->addClass("grid pinned");
+    container->add(std::move(_pinnedGrid));
 
     auto _grid = createGrid();
     grid = _grid.get();
-
-    auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-    container->add(std::move(_pinnedGrid));
     container->add(std::move(_grid));
+
     auto scrollable = std::make_unique<ScrolledWindow>();
     scrollable->add(std::move(container));
     body->add(std::move(scrollable));
@@ -287,14 +274,14 @@ void open() {
   update();
   input->focus();
 }
-void hide() {
+
+void Launcher::destroy() {
   menu.reset();
   window.reset();
 }
-void initialize() {
-  loadApps(APPLICATIONS);
-  loadApps(USER_APPLICATIONS);
-  Pinned::intialize();
-}
 
+Launcher::Launcher() {
+  loadApps(apps, APPLICATIONS);
+  loadApps(apps, USER_APPLICATIONS);
+  Pinned::intialize(apps);
 }

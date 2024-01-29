@@ -1,5 +1,4 @@
-#ifndef MEDIA_H
-#define MEDIA_H
+#pragma once
 
 #include <gio/gio.h>
 
@@ -43,5 +42,3 @@ class MediaController {
   std::vector<std::unique_ptr<PlayerController>> getPlayers();
   void onPlayersChange(const std::function<void()>& callback);
 };
-
-#endif
