@@ -1,7 +1,4 @@
 {
   // clangd extension
-  "editor.inlayHints.enabled": "off",
-  "licenser.customTermsAndConditions": "Copyright @YEAR@ Rakib (github.com/rakibdev/system-ui)",
-  "licenser.license": "MPLv2",
-  "licenser.useSPDXLicenseFormat": true
+  "editor.inlayHints.enabled": "off"
 }

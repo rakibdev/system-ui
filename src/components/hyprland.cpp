@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Rakib (github.com/rakibdev/system-ui)
+// SPDX-License-Identifier: MPL-2.0
+
 #include "hyprland.h"
 
 #include <sys/socket.h>
