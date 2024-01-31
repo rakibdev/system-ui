@@ -109,7 +109,7 @@ void loadApps(std::vector<App>& apps, const std::string& directory) {
 }
 
 void Launcher::launch(const std::string& command) {
-  destroy();
+  deactivate();
   runInNewProcess(command);
 }
 
@@ -218,7 +218,7 @@ std::unique_ptr<FlowBox> Launcher::createGrid() {
   return grid;
 }
 
-void Launcher::create() {
+void Launcher::onActivate() {
 #ifdef DEV
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
 #else
@@ -228,7 +228,7 @@ void Launcher::create() {
   window->addClass("launcher");
   window->visible();
   window->onKeyDown([this](GdkEventKey* event) {
-    if (event->keyval == GDK_KEY_Escape) destroy();
+    if (event->keyval == GDK_KEY_Escape) deactivate();
   });
 
   auto body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
@@ -278,13 +278,16 @@ void Launcher::create() {
   input->focus();
 }
 
-void Launcher::destroy() {
+void Launcher::onDeactivate() {
   menu.reset();
   window.reset();
 }
 
 Launcher::Launcher() {
+  keepAlive = true;
   loadApps(apps, APPLICATIONS);
   loadApps(apps, USER_APPLICATIONS);
   Pinned::intialize(apps);
 }
+
+Launcher::~Launcher() { apps.clear(); }

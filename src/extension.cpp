@@ -9,19 +9,17 @@
 
 #include "utils.h"
 
-ExtensionManager::~ExtensionManager() {
-  for (auto& extension : extensions) {
-    extension.second->destroy();
-  }
-  extensions.clear();
+void Extension::activate() {
+  running = true;
+  onActivate();
 }
 
-void ExtensionManager::add(const std::string& id,
-                           std::unique_ptr<Extension>&& extension) {
-  extensions[id] = std::move(extension);
+void Extension::deactivate() {
+  running = false;
+  onDeactivate();
 }
 
-std::string getId(std::string filename) {
+std::string ExtensionManager::getId(std::string filename) {
   size_t start = filename.find("lib");
   if (start == 0) filename.erase(start, 3);
   size_t end = filename.rfind(".so");
@@ -29,12 +27,13 @@ std::string getId(std::string filename) {
   return filename;
 }
 
-Extension* ExtensionManager::load(const std::string& filename,
-                                  std::string& error) {
-  std::string id = getId(filename);
-  auto it = extensions.find(id);
-  if (it != extensions.end()) return it->second.get();
+void ExtensionManager::add(const std::string& id,
+                           std::unique_ptr<Extension>&& extension) {
+  extensions[id] = std::move(extension);
+  extensions[id]->activate();
+}
 
+void ExtensionManager::load(const std::string& id, std::string& error) {
   std::filesystem::path file;
   if (std::filesystem::exists(EXTENSIONS_DIR)) {
     for (auto& it : std::filesystem::directory_iterator(EXTENSIONS_DIR)) {
@@ -46,24 +45,35 @@ Extension* ExtensionManager::load(const std::string& filename,
   }
   if (!file.empty()) {
     error = id + " not found in " + EXTENSIONS_DIR;
-    return nullptr;
+    return;
   }
 
   void* handle = dlopen(file.c_str(), RTLD_NOW);
   if (!handle) {
     error = "dlopen " + id + "failed. " + std::string(dlerror());
-    return nullptr;
+    return;
   }
-  using UseExtension = std::unique_ptr<Extension> (*)();
-  auto useExtension = (UseExtension)dlsym(handle, "useExtension");
-  if (!useExtension) {
+  using CreateExtension = std::unique_ptr<Extension> (*)();
+  auto createExtension = (CreateExtension)dlsym(handle, "createExtension");
+  if (!createExtension) {
     dlclose(handle);
     error = "dlsym " + id + "failed. " + std::string(dlerror());
-    return nullptr;
+    return;
   }
-  auto extension = useExtension();
+
+  add(id, createExtension());
   dlclose(handle);
-  auto ptr = extension.get();
-  add(getId(file.stem()), std::move(extension));
-  return ptr;
+}
+
+void ExtensionManager::unload(const std::string& id) {
+  auto it = extensions.find(id);
+  if (it != extensions.end()) {
+    it->second->deactivate();
+    if (!it->second->keepAlive) extensions.erase(it);
+  }
+}
+
+ExtensionManager::~ExtensionManager() {
+  for (auto& it : extensions) it.second->deactivate();
+  extensions.clear();
 }

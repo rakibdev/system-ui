@@ -542,7 +542,7 @@ void Panel::expand(bool value) {
   }
 }
 
-void Panel::create() {
+Panel::Panel() {
   auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
   body = _body.get();
   body->addClass("body");
@@ -612,7 +612,7 @@ void Panel::create() {
   Notifications::initialize();
 }
 
-void Panel::destroy() {
+Panel::~Panel() {
   // Audio::initialize();
   // Audio::onChange([]() {
   //   AudioTile::update();

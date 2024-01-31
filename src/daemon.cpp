@@ -82,24 +82,35 @@ void handleRequest(const Request& request, int client) {
   }
 
   if (request.command == "extension") {
-    if (!extensionManager) {
+    if (!extensionManager)
       extensionManager = std::make_unique<ExtensionManager>();
-      extensionManager->add("panel", std::move(std::make_unique<Panel>()));
-      extensionManager->add("launcher",
-                            std::move(std::make_unique<Launcher>()));
+
+    std::string id = ExtensionManager::getId(request.action);
+    auto it = extensionManager->extensions.find(id);
+    if (it == extensionManager->extensions.end()) {
+      if (id == "panel")
+        extensionManager->add(id, std::make_unique<Panel>());
+      else if (id == "launcher")
+        extensionManager->add(id, std::make_unique<Launcher>());
+      else {
+        std::string error;
+        extensionManager->load(id, error);
+        if (!error.empty()) {
+          respond("error", error);
+          return;
+        }
+      }
+    } else {
+      if (it->second->keepAlive) {
+        if (it->second->running)
+          it->second->deactivate();
+        else
+          it->second->activate();
+      } else
+        extensionManager->unload(id);
     }
 
-    std::string error;
-    Extension* extension = extensionManager->load(request.action, error);
-    if (error.empty()) {
-      extension->running = !extension->running;
-      if (extension->running)
-        extension->create();
-      else
-        extension->destroy();
-      respond("info", "");
-    } else
-      respond("error", error);
+    respond("info", "");
     return;
   }
 
@@ -108,6 +119,7 @@ void handleRequest(const Request& request, int client) {
     respond("info", "");
     return;
   }
+
   if (request.command == "media") {
     MediaController media;
     auto players = media.getPlayers();
@@ -124,6 +136,7 @@ void handleRequest(const Request& request, int client) {
     }
     return;
   }
+
   respond("error", "Unknown command.");
 }
 

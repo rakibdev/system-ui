@@ -29,6 +29,7 @@ class Launcher : public Extension {
 
  public:
   Launcher();
-  void create();
-  void destroy();
+  ~Launcher();
+  void onActivate();
+  void onDeactivate();
 };

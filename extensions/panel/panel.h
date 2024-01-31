@@ -21,6 +21,6 @@ class Panel : public Extension {
   void expand(bool value);
 
  public:
-  void create();
-  void destroy();
+  Panel();
+  ~Panel();
 };

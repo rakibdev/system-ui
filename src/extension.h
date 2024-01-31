@@ -8,21 +8,32 @@
 
 class Extension {
  public:
-  virtual ~Extension() = default;
   bool running = false;
-  virtual void create() = 0;
-  virtual void destroy() = 0;
+
+  // Allows daemon to cache extension instance.
+  // As a result, Extension() called only once, and ~Extension() when daemon stops.
+  // But onActivate(), onDeactivate() is called every time extension used.
+  // See launcher.cpp for use case.
+  bool keepAlive = false;
+
+  void activate();
+  void deactivate();
+  virtual void onActivate(){};
+  virtual void onDeactivate(){};
+  virtual ~Extension() = default;
 };
 
 class ExtensionManager {
  public:
   std::map<std::string, std::unique_ptr<Extension>> extensions;
-  ~ExtensionManager();
+  static std::string getId(std::string filename);
   void add(const std::string& id, std::unique_ptr<Extension>&& extension);
-  Extension* load(const std::string& filename, std::string& error);
+  void load(const std::string& id, std::string& error);
+  void unload(const std::string& id);
+  ~ExtensionManager();
 };
 
-#define EXPORT_EXTENSION(ExtensionClass)                 \
-  extern "C" std::unique_ptr<Extension> useExtension() { \
-    return std::make_unique<ExtensionClass>();           \
+#define EXPORT_EXTENSION(ExtensionClass)                    \
+  extern "C" std::unique_ptr<Extension> createExtension() { \
+    return std::make_unique<ExtensionClass>();              \
   }
