@@ -49,9 +49,43 @@ void destroy() {
 }
 }
 
+namespace Extensions {
+std::unique_ptr<ExtensionManager> manager;
+
+void loadOrUnload(const std::string& value, std::string& error) {
+  std::string name = ExtensionManager::getName(value);
+  auto it = manager->extensions.find(name);
+  if (it == manager->extensions.end()) {
+    if (name == "panel")
+      manager->add(name, std::make_unique<Panel>());
+    else if (name == "launcher")
+      manager->add(name, std::make_unique<Launcher>());
+    else
+      manager->load(name, error);
+  } else {
+    if (it->second->keepAlive) {
+      if (ExtensionManager::needsReload(it->second)) {
+        bool reactivate = !it->second->active;
+        manager->unload(name);
+        if (reactivate) loadOrUnload(value, error);
+      } else {
+        if (it->second->active)
+          it->second->deactivate();
+        else
+          it->second->activate();
+      }
+    } else
+      manager->unload(name);
+  }
+}
+
+void initialize() { manager = std::make_unique<ExtensionManager>(); }
+
+void destroy() { manager.reset(); }
+}
+
 namespace Daemon {
 GIOChannel* channel;
-std::unique_ptr<ExtensionManager> extensionManager;
 
 void destroy(int code) {
   if (channel) {
@@ -61,7 +95,7 @@ void destroy(int code) {
   }
   Config::destroy();
   Theme::destroy();
-  extensionManager.reset();
+  Extensions::destroy();
   exit(code);
 }
 
@@ -82,35 +116,12 @@ void handleRequest(const Request& request, int client) {
   }
 
   if (request.command == "extension") {
-    if (!extensionManager)
-      extensionManager = std::make_unique<ExtensionManager>();
-
-    std::string id = ExtensionManager::getId(request.action);
-    auto it = extensionManager->extensions.find(id);
-    if (it == extensionManager->extensions.end()) {
-      if (id == "panel")
-        extensionManager->add(id, std::make_unique<Panel>());
-      else if (id == "launcher")
-        extensionManager->add(id, std::make_unique<Launcher>());
-      else {
-        std::string error;
-        extensionManager->load(id, error);
-        if (!error.empty()) {
-          respond("error", error);
-          return;
-        }
-      }
-    } else {
-      if (it->second->keepAlive) {
-        if (it->second->running)
-          it->second->deactivate();
-        else
-          it->second->activate();
-      } else
-        extensionManager->unload(id);
-    }
-
-    respond("info", "");
+    std::string error;
+    Extensions::loadOrUnload(request.action, error);
+    if (error.empty())
+      respond("info", "");
+    else
+      respond("error", error);
     return;
   }
 
@@ -241,6 +252,7 @@ void initialize() {
 
   Config::apply();
   Config::watch();
+  Extensions::initialize();
 
   gtk_main();
 }

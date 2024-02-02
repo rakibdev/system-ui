@@ -19,7 +19,7 @@ void usage() {
   };
   addLine("daemon", "start|stop");
   addLine("extension", "panel|launcher|custom|custom.so|libcustom.so", "",
-          "Create or destroy an extension.");
+          "Load or unload an extension.");
   addLine("theme", "color", "\"#67abe8\"|image.png");
   addLine("media", "play-pause|next|previous");
   addLine("     ", "progress 0-100");
