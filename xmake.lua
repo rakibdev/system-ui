@@ -1,17 +1,21 @@
-set_languages("c++2b")
 add_rules("mode.debug", "mode.release")
-if is_mode("debug") then add_defines("DEV") end
-if is_mode("release") then set_installdir("/usr/") end
+if is_mode("debug") then
+    add_defines("DEV")
+    set_installdir("install")
+else
+    set_installdir("/usr/")
+end
+set_languages("c++2b")
 add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3",  {system = true})
 
 local pcFile = "/lib/pkgconfig/system-ui.pc"
 local headerDir = "include/system-ui"
+local shareDir = "/usr/share/system-ui"
 
 function createPkgConfig(target)
     local file = io.open(target:installdir() .. pcFile, 'w')
     if not file then return end
-
-    local packages = table.concat(target:get("packages"), ", ")
+    local requires = table.concat(target:get("packages"), ", ")
     local content = string.format([[
 prefix=%s
 libdir=${prefix}/lib
@@ -22,7 +26,7 @@ Description: UI for Linux
 Version: 0.0.1
 Requires: %s
 Libs: -L${libdir} -lsystem-ui
-Cflags: -I${includedir}/system-ui]], target:installdir(), packages)
+Cflags: -I${includedir}/system-ui]], target:installdir(), requires)
     file:write(content)
     file:close()
 end
@@ -45,7 +49,7 @@ target("system-ui")
     set_kind("shared")
     add_files("src/**.cpp")
     add_files("extensions/**.cpp")
-    
+
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3")
     add_deps("glaze")
     add_deps("material-color-utilities")
@@ -56,6 +60,8 @@ target("system-ui")
     -- install
     add_installfiles("src/*.h", { prefixdir = headerDir })
     add_installfiles("src/components/*.h", {prefixdir = headerDir .. "/components"})
+    add_installfiles("assets/shaders/*.frag", { prefixdir = shareDir .. "/shaders" })
+    add_installfiles("assets/system-ui.css", { prefixdir = shareDir })
     after_install(createPkgConfig)
     after_uninstall(function (target)
         os.rm(target:installdir() .. "/" .. headerDir)

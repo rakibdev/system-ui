@@ -8,7 +8,7 @@
 namespace Daemon {
 struct Request {
   std::string command;
-  std::string action;
+  std::string subCommand;
   std::string value;
 };
 struct Response {

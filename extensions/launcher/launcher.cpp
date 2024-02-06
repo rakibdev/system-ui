@@ -13,7 +13,7 @@ const std::string USER_APPLICATIONS = HOME + "/.local/share/applications";
 
 namespace Pinned {
 void intialize(const std::vector<App>& apps) {
-  auto& pinned = AppData::get().pinnedApps;
+  auto& pinned = appData.get().pinnedApps;
   if (pinned.empty()) return;
 
   int8_t size = pinned.size();
@@ -24,24 +24,24 @@ void intialize(const std::vector<App>& apps) {
                            });
     if (it == apps.end()) pinned.erase(pinned.begin() + index);
   }
-  if (pinned.size() != size) AppData::save();
+  if (pinned.size() != size) appData.save();
 }
 
 bool is(const std::string& file) {
-  auto& pinned = AppData::get().pinnedApps;
+  auto& pinned = appData.get().pinnedApps;
   return std::find(pinned.begin(), pinned.end(),
                    std::filesystem::path(file).filename()) != pinned.end();
 }
 
 void toggle(const std::string& file) {
-  auto& pinned = AppData::get().pinnedApps;
+  auto& pinned = appData.get().pinnedApps;
   std::string filename = std::filesystem::path(file).filename();
   auto it = std::find(pinned.begin(), pinned.end(), filename);
   if (it == pinned.end())
     pinned.insert(pinned.begin(), filename);
   else
     pinned.erase(it);
-  AppData::save();
+  appData.save();
 }
 }
 
@@ -110,7 +110,7 @@ void loadApps(std::vector<App>& apps, const std::string& directory) {
 
 void Launcher::launch(const std::string& command) {
   deactivate();
-  runInNewProcess(command);
+  runNewProcess(command);
 }
 
 void Launcher::openContextMenu(App& app, GdkEventButton* event) {
@@ -148,7 +148,7 @@ bool searchQuery(std::string text, std::string query) {
 
 void Launcher::update(bool sort) {
   if (sort) {
-    auto& pinned = AppData::get().pinnedApps;
+    auto& pinned = appData.get().pinnedApps;
     std::sort(apps.begin(), apps.end(),
               [&pinned](const App& app, const App& app2) {
                 auto it = std::find_if(pinned.begin(), pinned.end(),

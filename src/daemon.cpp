@@ -27,7 +27,7 @@ uint signal;
 
 void apply() {
   // apply theme or css after gtk_init().
-  // gdk_screen_get_default() is null before.
+  // because gdk_screen_get_default() is null before that.
   Theme::apply();
 }
 
@@ -36,7 +36,7 @@ void watch() {
                     GFileMonitorEvent eventType, gpointer data) {
     if (eventType == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) apply();
   };
-  file = g_file_new_for_path(CSS_FILE.c_str());
+  file = g_file_new_for_path(USER_CSS.c_str());
   monitor = g_file_monitor_file(file, G_FILE_MONITOR_NONE, nullptr, nullptr);
   signal =
       g_signal_connect_after(monitor, "changed", G_CALLBACK(+changed), nullptr);
@@ -64,16 +64,13 @@ void loadOrUnload(const std::string& value, std::string& error) {
       manager->load(name, error);
   } else {
     if (it->second->keepAlive) {
-      if (ExtensionManager::needsReload(it->second)) {
-        bool reactivate = !it->second->active;
+      if (it->second->active)
+        it->second->deactivate();
+      else if (ExtensionManager::needsReload(it->second)) {
         manager->unload(name);
-        if (reactivate) loadOrUnload(value, error);
-      } else {
-        if (it->second->active)
-          it->second->deactivate();
-        else
-          it->second->activate();
-      }
+        loadOrUnload(value, error);
+      } else
+        it->second->activate();
     } else
       manager->unload(name);
   }
@@ -105,11 +102,11 @@ void handleRequest(const Request& request, int client) {
     send(client, content.c_str(), content.size(), 0);
   };
   if (request.command == "daemon") {
-    if (request.action == "start") {
+    if (request.subCommand == "start") {
       respond("info", "Daemon already running.");
       return;
     }
-    if (request.action == "stop") {
+    if (request.subCommand == "stop") {
       respond("info", "Daemon stopped.");
       destroy(EXIT_SUCCESS);
     }
@@ -117,7 +114,7 @@ void handleRequest(const Request& request, int client) {
 
   if (request.command == "extension") {
     std::string error;
-    Extensions::loadOrUnload(request.action, error);
+    Extensions::loadOrUnload(request.subCommand, error);
     if (error.empty())
       respond("info", "");
     else
@@ -125,7 +122,7 @@ void handleRequest(const Request& request, int client) {
     return;
   }
 
-  if (request.command == "theme") {
+  if (request.command == "theme" && request.subCommand == "build") {
     Theme::apply(request.value.empty() ? Theme::defaultColor : request.value);
     respond("info", "");
     return;
@@ -138,10 +135,10 @@ void handleRequest(const Request& request, int client) {
       respond("error", "No active player found.");
     else {
       std::unique_ptr<PlayerController>& player = players.front();
-      if (request.action == "play-pause") player->playPause();
-      if (request.action == "next") player->next();
-      if (request.action == "previous") player->previous();
-      if (request.action == "progress")
+      if (request.subCommand == "play-pause") player->playPause();
+      if (request.subCommand == "next") player->next();
+      if (request.subCommand == "previous") player->previous();
+      if (request.subCommand == "progress")
         player->progress(std::stoi(request.value));
       respond("info", "");
     }

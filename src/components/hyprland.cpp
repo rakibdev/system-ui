@@ -34,8 +34,8 @@ std::string request(std::string command, std::string& error) {
     return "";
   }
 
-  // prepend another "/" when command contains "/" such as file path.
-  // it's how hyprland parses https://github.com/hyprwm/Hyprland/blob/main/src/debug/HyprCtl.cpp#L1405
+  // prepend another "/" if command contains "/" e.g. file path.
+  // that's how hyprland parses https://github.com/hyprwm/Hyprland/blob/main/src/debug/HyprCtl.cpp#L1405
   if (command.contains("/") && !command.starts_with("/"))
     command = "/" + command;
 

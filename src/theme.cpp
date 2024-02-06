@@ -10,6 +10,7 @@
 #include "../libs/material-color-utilities/cpp/cam/hct.h"
 #include "../libs/material-color-utilities/cpp/quantize/celebi.h"
 #include "../libs/material-color-utilities/cpp/score/score.h"
+#include "build.h"
 #include "utils.h"
 
 using material_color_utilities::Hct;
@@ -176,10 +177,11 @@ std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
 // also theme doesn't work if without quotes.
 
 AppData::Theme &getOrCreate(const std::string &color) {
-  AppData::Data &data = AppData::get();
+  AppData &data = appData.get();
   if (data.theme["primary_40"].empty() || !color.empty()) {
     data.theme = fromColor(color.empty() ? defaultColor : color);
-    AppData::save();
+    appData.save();
+    Build::start();
   }
   return data.theme;
 }
@@ -187,36 +189,42 @@ AppData::Theme &getOrCreate(const std::string &color) {
 void apply(const std::string &color) {
   AppData::Theme &theme = getOrCreate(color);
 
-  std::string cssVariables;
+  std::string colorsCss;
   for (const auto &[key, value] : theme)
-    cssVariables += "@define-color " + key + " " + value + ";\n";
-
-  std::stringstream css;
-  if (std::filesystem::exists(CSS_FILE)) {
-    std::ifstream file(CSS_FILE);
-    css << file.rdbuf();
-  } else {
-    Log::warn("File not found: " + CSS_FILE);
+    colorsCss += "@define-color " + key + " " + value + ";\n";
+  std::stringstream defaultCss;
+  {
+    std::ifstream file(SHARE_DIR + "/system-ui.css");
+    if (file.is_open()) defaultCss << file.rdbuf();
   }
+  std::stringstream userCss;
+  {
+    std::ifstream file(USER_CSS);
+    if (file.is_open()) userCss << file.rdbuf();
+  }
+
   if (cssProvider)
     gtk_style_context_remove_provider_for_screen(
-        gdk_screen_get_default(), GTK_STYLE_PROVIDER(cssProvider));
+        gdk_screen_get_default(), (GtkStyleProvider *)cssProvider);
   else
     cssProvider = gtk_css_provider_new();
   GError *error = nullptr;
   gtk_css_provider_load_from_data(
-      cssProvider, (cssVariables + css.str()).c_str(), -1, &error);
+      cssProvider, (colorsCss + defaultCss.str() + userCss.str()).c_str(), -1,
+      &error);
   if (error) {
-    Log::error("Theme CSS " + CSS_FILE + ":\n" + std::string(error->message));
+    Log::error("Invalid CSS: " + std::string(error->message));
     g_error_free(error);
     destroy();
-    cssProvider = nullptr;
     return;
   }
   gtk_style_context_add_provider_for_screen(
-      gdk_screen_get_default(), GTK_STYLE_PROVIDER(cssProvider),
+      gdk_screen_get_default(), (GtkStyleProvider *)cssProvider,
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 }
 
-void destroy() { g_object_unref(cssProvider); }
+void destroy() {
+  g_object_unref(cssProvider);
+  cssProvider = nullptr;
+}
 }

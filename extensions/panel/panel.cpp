@@ -226,6 +226,8 @@ std::unique_ptr<EventBox> create() {
 
 namespace NightLightTile {
 Tile *tile;
+std::string nightLightShader = SHARE_DIR + "/shaders/night-light.frag";
+std::string resetShader = SHARE_DIR + "/shaders/reset.frag";
 
 void update() {
   std::string error;
@@ -250,16 +252,16 @@ void update() {
     break;
   }
 
-  tile->setActive(value == NIGHT_LIGHT_SHADER_FILE);
+  tile->setActive(value == nightLightShader);
   tile->description->set(tile->active ? "Active" : "Inactive");
 }
 
 void onClick() {
   std::string error;
-  std::string response = Hyprland::request(
-      "keyword decoration:screen_shader " +
-          (tile->active ? RESET_SHADER_FILE : NIGHT_LIGHT_SHADER_FILE),
-      error);
+  std::string response =
+      Hyprland::request("keyword decoration:screen_shader " +
+                            (tile->active ? resetShader : nightLightShader),
+                        error);
   if (response == "ok")
     update();
   else if (!error.empty())
@@ -381,7 +383,7 @@ std::vector<Sensor> getTemperatureSensors() {
   return result;
 }
 
-void onClick() { runInNewProcess("foot --title=system-monitor btm"); }
+void onClick() { runNewProcess("foot --title=system-monitor btm"); }
 
 void update() {
   tile->label->set(std::to_string(getUsage()) + "% use");

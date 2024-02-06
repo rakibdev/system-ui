@@ -10,19 +10,20 @@
 #include <filesystem>
 #include <iostream>
 
-#include "glaze/json.hpp"
-
 const std::string SOCKET_FILE = "/tmp/system-ui/daemon.sock";
 const std::string LOG_FILE = "/tmp/system-ui/daemon.log";
 const std::string HOME = std::getenv("HOME");
 const std::string APP_DATA_FILE = HOME + "/.config/system-ui/app-data.json";
-const std::string CONFIG_FILE = HOME + "/.config/system-ui/system-ui.json";
+const std::string USER_CONFIG = HOME + "/.config/system-ui/system-ui.json";
 const std::string EXTENSIONS_DIR = HOME + "/.config/system-ui/extensions";
-const std::string CSS_FILE = HOME + "/.config/system-ui/system-ui.css";
+const std::string USER_CSS = HOME + "/.config/system-ui/system-ui.css";
 const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
-const std::string NIGHT_LIGHT_SHADER_FILE =
-    HOME + "/.config/hypr/shaders/night-light.frag";
-const std::string RESET_SHADER_FILE = HOME + "/.config/hypr/shaders/reset.frag";
+#ifdef DEV
+const std::string SHARE_DIR =
+    std::filesystem::current_path().string() + "/assets";
+#else
+const std::string SHARE_DIR = "/usr/share/system-ui";
+#endif
 
 namespace Log {
 std::string color;
@@ -67,30 +68,10 @@ void enableFileLogging() {
   prepareDirectory(LOG_FILE);
   fileLogging = true;
 }
-
 }
 
-namespace AppData {
-Data content;
-bool loaded = false;
-
-Data& get() {
-  if (loaded) return content;
-  std::string buffer{};
-  auto error = glz::read_file_json(content, APP_DATA_FILE, buffer);
-  if (error)
-    Log::error("Unable to parse " + APP_DATA_FILE + ":\n" +
-               glz::format_error(error, buffer));
-  else
-    loaded = true;
-  return content;
-}
-
-void save() {
-  auto error = glz::write_file_json(content, APP_DATA_FILE, std::string{});
-  if (error) Log::error("Unable to save " + APP_DATA_FILE);
-}
-}
+StorageManager<AppData> appData = StorageManager<AppData>(APP_DATA_FILE);
+StorageManager<UserConfig> userConfig = StorageManager<UserConfig>(USER_CONFIG);
 
 void prepareDirectory(const std::string& path) {
   std::filesystem::path parent = std::filesystem::path(path).parent_path();
@@ -112,7 +93,7 @@ std::string run(const std::string& command) {
   return result;
 }
 
-void runInNewProcess(const std::string& command) {
+void runNewProcess(const std::string& command) {
   std::signal(SIGCHLD, SIG_IGN);
   pid_t pid;
   std::vector<char*> argv;
@@ -122,9 +103,9 @@ void runInNewProcess(const std::string& command) {
   argv.push_back(nullptr);
   int status =
       posix_spawnp(&pid, argv[0], nullptr, nullptr, argv.data(), environ);
+  // todo: use __func__ to get name of current function
   if (status != 0)
-    Log::error("runInNewProcess \"" + command +
-               "\": " + "posix_spawnp failed.");
+    Log::error("runNewProcess \"" + command + "\": " + "posix_spawnp failed.");
   for (char* arg : argv) free(arg);
 }
 

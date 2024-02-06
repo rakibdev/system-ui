@@ -13,6 +13,7 @@ Optional
 - bluez
 - networkmanager
 - hyprland (night light)
+- ttf-material-symbols-variable-git (icons)
 
 ```
 xmake config --mode=release

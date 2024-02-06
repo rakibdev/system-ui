@@ -3,21 +3,17 @@
 
 #pragma once
 
-#include <fstream>
-#include <functional>
-#include <map>
-#include <string>
+#include "glaze/json.hpp"
 
 extern const std::string SOCKET_FILE;
 extern const std::string LOG_FILE;
 extern const std::string HOME;
 extern const std::string APP_DATA_FILE;
-extern const std::string CONFIG_FILE;
+extern const std::string USER_CONFIG;
 extern const std::string EXTENSIONS_DIR;
-extern const std::string CSS_FILE;
+extern const std::string USER_CSS;
 extern const std::string THEMED_ICONS;
-extern const std::string NIGHT_LIGHT_SHADER_FILE;
-extern const std::string RESET_SHADER_FILE;
+extern const std::string SHARE_DIR;
 
 namespace Log {
 constexpr const char* colorOff = "\033[0m";
@@ -32,20 +28,53 @@ void warn(const std::string& message);
 void enableFileLogging();
 }
 
-namespace AppData {
-using Theme = std::map<std::string, std::string>;
-struct Data {
+template <typename Content>
+class StorageManager {
+  std::string file;
+  bool loaded = false;
+
+ public:
+  StorageManager(const std::string& file) : file(file) {}
+  Content content;
+  Content& get() {
+    if (loaded) return content;
+    std::string buffer{};
+    auto error = glz::read_file_json(content, file, buffer);
+    if (error)
+      Log::error("StorageManager: Parse failed " + file + "\n" +
+                 glz::format_error(error, buffer));
+    else
+      loaded = true;
+    return content;
+  }
+  void save() {
+    auto error = glz::write_file_json(content, file, std::string{});
+    if (error) Log::error("StorageManager: Unable to save " + file);
+  }
+};
+
+struct AppData {
+  using Theme = std::map<std::string, std::string>;
   std::vector<std::string> pinnedApps;
   Theme theme;
 };
-Data& get();
-void save();
-}
+
+struct UserConfig {
+  struct Build {
+    std::string path;
+    std::string input;
+    std::string action;
+  };
+  std::vector<Build> builds;
+};
+
+extern StorageManager<AppData> appData;
+extern StorageManager<UserConfig> userConfig;
 
 void prepareDirectory(const std::string& path);
 
 std::string run(const std::string& command);
-void runInNewProcess(const std::string& command);
+void runNewProcess(const std::string& command);
 
 class Debouncer {
   std::function<void()> callback;
