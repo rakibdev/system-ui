@@ -123,7 +123,7 @@ void update() {
           description = std::to_string(connectedCount) + " devices";
         } else {
           label = device.label;
-          if (device.battery > -1)
+          if (device.battery != -1)
             description = std::to_string(device.battery) + "% battery";
         }
         icon = "bluetooth_connected";

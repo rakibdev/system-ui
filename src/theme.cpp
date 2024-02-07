@@ -21,7 +21,7 @@ uint32_t argbFromHex(const std::string &hex) {
 
 std::string hexFromArgb(uint32_t argb) {
   std::stringstream stream;
-  stream << "#" << std::hex << std::uppercase << std::setfill('0')
+  stream << "#" << std::hex << std::nouppercase << std::setfill('0')
          << std::setw(6) << (argb & 0x00FFFFFF);
   return stream.str();
 }
@@ -177,6 +177,8 @@ std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
 // also theme doesn't work if without quotes.
 
 AppData::Theme &getOrCreate(const std::string &color) {
+  Build::start();  // todo: remove
+
   AppData &data = appData.get();
   if (data.theme["primary_40"].empty() || !color.empty()) {
     data.theme = fromColor(color.empty() ? defaultColor : color);

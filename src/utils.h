@@ -8,6 +8,7 @@
 extern const std::string SOCKET_FILE;
 extern const std::string LOG_FILE;
 extern const std::string HOME;
+extern const std::string CONFIG_DIR;
 extern const std::string APP_DATA_FILE;
 extern const std::string USER_CONFIG;
 extern const std::string EXTENSIONS_DIR;
@@ -61,8 +62,8 @@ struct AppData {
 
 struct UserConfig {
   struct Build {
-    std::string path;
-    std::string input;
+    std::string target;
+    std::string source;
     std::string action;
   };
   std::vector<Build> builds;
@@ -72,6 +73,8 @@ extern StorageManager<AppData> appData;
 extern StorageManager<UserConfig> userConfig;
 
 void prepareDirectory(const std::string& path);
+std::string getAbsolutePath(const std::string& path,
+                            const std::string& parent = HOME);
 
 std::string run(const std::string& command);
 void runNewProcess(const std::string& command);

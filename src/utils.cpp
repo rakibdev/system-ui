@@ -13,10 +13,11 @@
 const std::string SOCKET_FILE = "/tmp/system-ui/daemon.sock";
 const std::string LOG_FILE = "/tmp/system-ui/daemon.log";
 const std::string HOME = std::getenv("HOME");
-const std::string APP_DATA_FILE = HOME + "/.config/system-ui/app-data.json";
-const std::string USER_CONFIG = HOME + "/.config/system-ui/system-ui.json";
-const std::string EXTENSIONS_DIR = HOME + "/.config/system-ui/extensions";
-const std::string USER_CSS = HOME + "/.config/system-ui/system-ui.css";
+const std::string CONFIG_DIR = HOME + "/.config/system-ui";
+const std::string APP_DATA_FILE = CONFIG_DIR + "/app-data.json";
+const std::string USER_CONFIG = CONFIG_DIR + "/system-ui.json";
+const std::string EXTENSIONS_DIR = CONFIG_DIR + "/extensions";
+const std::string USER_CSS = CONFIG_DIR + "system-ui.css";
 const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
 #ifdef DEV
 const std::string SHARE_DIR =
@@ -77,6 +78,14 @@ void prepareDirectory(const std::string& path) {
   std::filesystem::path parent = std::filesystem::path(path).parent_path();
   if (!std::filesystem::exists(parent))
     std::filesystem::create_directories(parent);
+}
+
+std::string getAbsolutePath(const std::string& path,
+                            const std::string& parent) {
+  if (path.starts_with("~/")) return HOME + path.substr(1);
+  if (path.starts_with("/")) return HOME + path;
+  if (path.starts_with("./")) return parent + path.substr(1);
+  return parent + "/" + path;
 }
 
 std::string run(const std::string& command) {
