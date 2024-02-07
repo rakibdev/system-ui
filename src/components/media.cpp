@@ -157,7 +157,7 @@ std::vector<std::unique_ptr<PlayerController>> MediaController::getPlayers() {
   char* name;
   while (g_variant_iter_next(iter, "&s", &name)) {
     if (std::string_view(name).starts_with("org.mpris.MediaPlayer2.")) {
-      players.push_back(
+      players.emplace_back(
           std::make_unique<PlayerController>(connection, std::string(name)));
     }
   }

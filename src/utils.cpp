@@ -108,8 +108,8 @@ void runNewProcess(const std::string& command) {
   std::vector<char*> argv;
   std::istringstream iss(command);
   std::string arg;
-  while (iss >> arg) argv.push_back(strdup(arg.c_str()));
-  argv.push_back(nullptr);
+  while (iss >> arg) argv.emplace_back(strdup(arg.c_str()));
+  argv.emplace_back(nullptr);
   int status =
       posix_spawnp(&pid, argv[0], nullptr, nullptr, argv.data(), environ);
   // todo: use __func__ to get name of current function

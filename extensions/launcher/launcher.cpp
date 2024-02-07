@@ -104,7 +104,7 @@ void loadApps(std::vector<App>& apps, const std::string& directory) {
       }
     }
 
-    if (!override) apps.push_back(app);
+    if (!override) apps.emplace_back(app);
   }
 }
 

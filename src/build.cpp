@@ -5,11 +5,8 @@
 
 #include "utils.h"
 
-void merge(std::string& target, const std::string& source, std::string& error) {
-  std::map<std::string, std::string> variables;
-  for (const auto& [key, value] : appData.get().theme)
-    variables[key] = value.substr(1);
-
+void merge(std::string& target, const std::string& source,
+           std::map<std::string, std::string>& variables, std::string& error) {
   int targetIndex = 0;
   int sourceIndex = 0;
   int targetReplaceStart = -1;
@@ -87,8 +84,11 @@ void build(const UserConfig::Build& config) {
     return;
   }
   if (config.action == "merge") {
-    std::string line;
+    std::map<std::string, std::string> variables;
+    for (const auto& [key, value] : appData.get().theme)
+      variables[key] = value.substr(1);
 
+    std::string line;
     std::vector<std::string> source;
     while (std::getline(sourceFile, line)) source.emplace_back(line);
 
@@ -96,7 +96,7 @@ void build(const UserConfig::Build& config) {
     while (std::getline(targetFile, line)) {
       for (const auto& sourceLine : source) {
         std::string error;
-        merge(line, sourceLine, error);
+        merge(line, sourceLine, variables, error);
         if (!error.empty()) Log::error(error + " in " + sourceLine);
       }
       target.emplace_back(line);

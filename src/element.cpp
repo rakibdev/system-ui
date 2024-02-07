@@ -20,7 +20,7 @@ Element::~Element() {
 void Element::add(std::unique_ptr<Element> &&element) {
   gtk_container_add(GTK_CONTAINER(widget), element->widget);
   element->visible();
-  childrens.push_back(std::move(element));
+  childrens.emplace_back(std::move(element));
 }
 
 void Element::visible(bool value) { gtk_widget_set_visible(widget, value); }
@@ -163,7 +163,7 @@ void Box::spaceEvenly(bool value) {
 void Box::prependChild(std::unique_ptr<Element> &&child) {
   gtk_box_pack_start((GtkBox *)widget, child->widget, true, true, 0);
   child->visible();
-  childrens.push_back(std::move(child));
+  childrens.emplace_back(std::move(child));
 }
 
 Label::Label(const std::string &value) {
@@ -470,7 +470,7 @@ Menu::Menu() { widget = gtk_menu_new(); }
 void Menu::add(std::unique_ptr<MenuItem> &&child) {
   gtk_menu_shell_append((GtkMenuShell *)widget, child->widget);
   child->visible();
-  childrens.push_back(std::move(child));
+  childrens.emplace_back(std::move(child));
 }
 
 void Menu::visible(bool value) {

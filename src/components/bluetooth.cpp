@@ -15,7 +15,7 @@ BluetoothDevice &findOrCreateDevice(const std::string &path,
   if (it != devices.end())
     return *it;
   else {
-    devices.push_back(BluetoothDevice{.path = path});
+    devices.emplace_back(BluetoothDevice{.path = path});
     return devices.back();
   }
 }

@@ -337,7 +337,7 @@ void loadTimes(int &idleTime, int &totalTime) {
   line.ignore(5, ' ');  // skip "cpu" prefix.
   std::vector<size_t> times;
   int value;
-  while (line >> value) times.push_back(value);
+  while (line >> value) times.emplace_back(value);
   idleTime = times[3];
   totalTime = std::accumulate(times.begin(), times.end(), 0);
 }

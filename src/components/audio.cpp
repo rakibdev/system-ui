@@ -191,7 +191,7 @@ void onGlobalObject(void *data, uint32_t id, uint32_t permissions,
       };
       pw_node_add_listener(node->proxy, &node->listener, &nodeEvents,
                            node.get());
-      nodes.push_back(std::move(node));
+      nodes.emplace_back(std::move(node));
     };
   }
 
@@ -209,7 +209,7 @@ void onGlobalObject(void *data, uint32_t id, uint32_t permissions,
       };
       pw_device_add_listener(device->proxy, &device->listener, &deviceEvents,
                              device.get());
-      devices.push_back(std::move(device));
+      devices.emplace_back(std::move(device));
     }
   }
 

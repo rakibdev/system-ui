@@ -185,7 +185,7 @@ void update() {
   for (auto &controller : controllers) {
     auto player = std::make_unique<Player>(std::move(controller));
     container->add(std::move(player->create()));
-    players.push_back(std::move(player));
+    players.emplace_back(std::move(player));
   }
 }
 

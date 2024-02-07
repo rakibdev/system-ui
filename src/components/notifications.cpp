@@ -89,7 +89,7 @@ void NotificationManager::handleNotify(GVariant *parameters,
   if (index < list.size())
     list[index] = notification;
   else {
-    list.push_back(notification);
+    list.emplace_back(notification);
     index = list.size() - 1;
   }
   auto id = index + 1;
