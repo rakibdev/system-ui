@@ -177,8 +177,6 @@ std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
 // also theme doesn't work if without quotes.
 
 AppData::Theme &getOrCreate(const std::string &color) {
-  Build::start();  // todo: remove
-
   AppData &data = appData.get();
   if (data.theme["primary_40"].empty() || !color.empty()) {
     data.theme = fromColor(color.empty() ? defaultColor : color);
@@ -196,7 +194,7 @@ void apply(const std::string &color) {
     colorsCss += "@define-color " + key + " " + value + ";\n";
   std::stringstream defaultCss;
   {
-    std::ifstream file(SHARE_DIR + "/system-ui.css");
+    std::ifstream file(DEFAULT_CSS);
     if (file.is_open()) defaultCss << file.rdbuf();
   }
   std::stringstream userCss;

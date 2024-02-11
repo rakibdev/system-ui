@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-void merge(std::string& target, const std::string& source,
+void patch(std::string& target, const std::string& source,
            std::map<std::string, std::string>& variables, std::string& error) {
   int targetIndex = 0;
   int sourceIndex = 0;
@@ -23,11 +23,14 @@ void merge(std::string& target, const std::string& source,
       continue;
     }
     if (targetReplaceStart != -1) {
-      bool end = target[targetIndex] == source[sourceIndex] ||
-                 targetIndex == (target.length() - 1);
-      if (end) {
-        target.replace(targetReplaceStart,
-                       targetIndex - (targetReplaceStart - 1), sourceVariable);
+      int replaceEnd = -1;
+      if (target[targetIndex] == source[sourceIndex])
+        replaceEnd = targetIndex - 1;
+      else if (targetIndex == (target.length() - 1))
+        replaceEnd = targetIndex;
+      if (replaceEnd > -1) {
+        int length = replaceEnd - (targetReplaceStart - 1);
+        target.replace(targetReplaceStart, length, sourceVariable);
         targetIndex = targetReplaceStart + (sourceVariable.length() - 1);
         targetReplaceStart = -1;
       }
@@ -83,7 +86,7 @@ void build(const UserConfig::Build& config) {
     Log::error("Build action missing: " + targetPath);
     return;
   }
-  if (config.action == "merge") {
+  if (config.action == "patch") {
     std::map<std::string, std::string> variables;
     for (const auto& [key, value] : appData.get().theme)
       variables[key] = value.substr(1);
@@ -96,7 +99,7 @@ void build(const UserConfig::Build& config) {
     while (std::getline(targetFile, line)) {
       for (const auto& sourceLine : source) {
         std::string error;
-        merge(line, sourceLine, variables, error);
+        patch(line, sourceLine, variables, error);
         if (!error.empty()) Log::error(error + " in " + sourceLine);
       }
       target.emplace_back(line);

@@ -10,21 +10,22 @@
 #include <filesystem>
 #include <iostream>
 
-const std::string SOCKET_FILE = "/tmp/system-ui/daemon.sock";
-const std::string LOG_FILE = "/tmp/system-ui/daemon.log";
-const std::string HOME = std::getenv("HOME");
-const std::string CONFIG_DIR = HOME + "/.config/system-ui";
-const std::string APP_DATA_FILE = CONFIG_DIR + "/app-data.json";
-const std::string USER_CONFIG = CONFIG_DIR + "/system-ui.json";
-const std::string EXTENSIONS_DIR = CONFIG_DIR + "/extensions";
-const std::string USER_CSS = CONFIG_DIR + "system-ui.css";
-const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
 #ifdef DEV
 const std::string SHARE_DIR =
     std::filesystem::current_path().string() + "/assets";
 #else
 const std::string SHARE_DIR = "/usr/share/system-ui";
 #endif
+const std::string HOME = std::getenv("HOME");
+const std::string SOCKET_FILE = "/tmp/system-ui/daemon.sock";
+const std::string LOG_FILE = "/tmp/system-ui/daemon.log";
+const std::string CONFIG_DIR = HOME + "/.config/system-ui";
+const std::string APP_DATA_FILE = CONFIG_DIR + "/app-data.json";
+const std::string USER_CONFIG = CONFIG_DIR + "/system-ui.json";
+const std::string EXTENSIONS_DIR = CONFIG_DIR + "/extensions";
+const std::string USER_CSS = CONFIG_DIR + "system-ui.css";
+const std::string DEFAULT_CSS = SHARE_DIR + "/system-ui.css";
+const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
 
 namespace Log {
 std::string color;

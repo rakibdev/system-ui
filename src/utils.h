@@ -5,16 +5,17 @@
 
 #include "glaze/json.hpp"
 
+extern const std::string SHARE_DIR;
+extern const std::string HOME;
 extern const std::string SOCKET_FILE;
 extern const std::string LOG_FILE;
-extern const std::string HOME;
 extern const std::string CONFIG_DIR;
 extern const std::string APP_DATA_FILE;
 extern const std::string USER_CONFIG;
 extern const std::string EXTENSIONS_DIR;
 extern const std::string USER_CSS;
+extern const std::string DEFAULT_CSS;
 extern const std::string THEMED_ICONS;
-extern const std::string SHARE_DIR;
 
 namespace Log {
 constexpr const char* colorOff = "\033[0m";
