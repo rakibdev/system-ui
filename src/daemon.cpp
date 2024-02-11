@@ -11,7 +11,6 @@
 #include <unistd.h>
 
 #include <csignal>
-#include <memory>
 
 #include "../extensions/launcher/launcher.h"
 #include "../extensions/panel/panel.h"
@@ -19,35 +18,35 @@
 #include "extension.h"
 #include "glaze/json.hpp"
 #include "theme.h"
+#include "utils.h"
 
-namespace Config {
-GFile* file;
-GFileMonitor* monitor;
-uint signal;
+class FileWatcher {
+  using Callback = std::function<void(GFileMonitorEvent)>;
+  GFile* file;
+  GFileMonitor* monitor;
+  uint signal;
+  Callback callback;
 
-void apply() {
-  // apply theme or css after gtk_init().
-  // because gdk_screen_get_default() is null before that.
-  Theme::apply();
-}
+ public:
+  FileWatcher(const std::string& path, const Callback& callback)
+      : callback(callback) {
+    file = g_file_new_for_path(path.c_str());
+    monitor = g_file_monitor_file(file, G_FILE_MONITOR_NONE, nullptr, nullptr);
+    auto changed = [](GFileMonitor* monitor, GFile* file, GFile* otherFile,
+                      GFileMonitorEvent event, gpointer data) {
+      auto _this = static_cast<FileWatcher*>(data);
+      _this->callback(event);
+    };
+    signal =
+        g_signal_connect_after(monitor, "changed", G_CALLBACK(+changed), this);
+  }
 
-void watch() {
-  auto changed = [](GFileMonitor* monitor, GFile* file, GFile* other_file,
-                    GFileMonitorEvent eventType, gpointer data) {
-    if (eventType == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) apply();
-  };
-  file = g_file_new_for_path(USER_CSS.c_str());
-  monitor = g_file_monitor_file(file, G_FILE_MONITOR_NONE, nullptr, nullptr);
-  signal =
-      g_signal_connect_after(monitor, "changed", G_CALLBACK(+changed), nullptr);
-}
-
-void destroy() {
-  g_signal_handler_disconnect(monitor, signal);
-  g_object_unref(monitor);
-  g_object_unref(file);
-}
-}
+  ~FileWatcher() {
+    g_signal_handler_disconnect(monitor, signal);
+    g_object_unref(monitor);
+    g_object_unref(file);
+  }
+};
 
 namespace Extensions {
 std::unique_ptr<ExtensionManager> manager;
@@ -83,6 +82,10 @@ void destroy() { manager.reset(); }
 
 namespace Daemon {
 GIOChannel* channel;
+std::unique_ptr<FileWatcher> userCssWatcher;
+#ifdef DEV
+std::unique_ptr<FileWatcher> defaultCssWatcher;
+#endif
 
 void destroy(int code) {
   if (channel) {
@@ -90,15 +93,21 @@ void destroy(int code) {
                           nullptr);  // also closes internal socket
     g_io_channel_unref(channel);
   }
-  Config::destroy();
+  userCssWatcher.reset();
+#ifdef DEV
+  defaultCssWatcher.reset();
+#endif
   Theme::destroy();
   Extensions::destroy();
   exit(code);
 }
 
 void handleRequest(const Request& request, int client) {
-  auto respond = [client](const std::string&& key, const std::string& value) {
-    std::string content = "{ \"" + key + "\": \"" + value + "\" }";
+  auto respond = [client](const std::string&& key, const std::string& value,
+                          int code = 0) {
+    if (key == "error" && code == 0) code = 1;
+    std::string content = "{ \"" + key + "\": \"" + value +
+                          "\", \"code\": " + std::to_string(code) + " }";
     send(client, content.c_str(), content.size(), 0);
   };
   if (request.command == "daemon") {
@@ -145,7 +154,7 @@ void handleRequest(const Request& request, int client) {
     return;
   }
 
-  respond("error", "Unknown command.");
+  respond("error", "Unknown command.", 127);
 }
 
 gboolean onIncomingRequest(GIOChannel* channel, GIOCondition condition,
@@ -247,8 +256,20 @@ void initialize() {
   g_setenv("GDK_BACKEND", "wayland", true);
   gtk_init(nullptr, nullptr);
 
-  Config::apply();
-  Config::watch();
+  // don't apply theme or css before gtk_init().
+  // gdk_screen_get_default() is null before gtk_init.
+  Theme::apply();
+  userCssWatcher =
+      std::make_unique<FileWatcher>(USER_CSS, [](GFileMonitorEvent event) {
+        if (event == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) Theme::apply();
+      });
+#ifdef DEV
+  defaultCssWatcher =
+      std::make_unique<FileWatcher>(DEFAULT_CSS, [](GFileMonitorEvent event) {
+        if (event == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) Theme::apply();
+      });
+#endif
+
   Extensions::initialize();
 
   gtk_main();
