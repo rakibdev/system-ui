@@ -53,8 +53,11 @@ int main(int argc, char* argv[]) {
     Log::info("Daemon started.");
     Daemon::initialize();
   } else {
-    if (!response.error.empty()) Log::error(response.error);
-    if (!response.info.empty()) Log::info(response.info);
+    if (!response.error.empty()) {
+      Log::error(response.error);
+      return response.code;
+    } else if (!response.info.empty())
+      Log::info(response.info);
   }
 
   return 0;

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace Daemon {
@@ -14,6 +15,7 @@ struct Request {
 struct Response {
   std::string info;
   std::string error;
+  uint8_t code;
 };
 Response request(const Request& request);
 void initialize();
