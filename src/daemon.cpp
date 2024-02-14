@@ -11,11 +11,11 @@
 #include <unistd.h>
 
 #include <csignal>
+#include <cstring>
 
 #include "../extensions/launcher/launcher.h"
 #include "../extensions/panel/panel.h"
 #include "components/media.h"
-#include "extension.h"
 #include "glaze/json.hpp"
 #include "theme.h"
 #include "utils.h"
@@ -223,10 +223,13 @@ Response request(const Request& request) {
   ssize_t bytesRead = recv(client, buffer, sizeof(buffer) - 1, 0);
   close(client);
 
-  auto error = glz::read_json(response, buffer);
-  if (error)
-    response.error =
-        "Unable to parse daemon response:\n" + glz::format_error(error, buffer);
+  if (strlen(buffer)) {
+    auto error = glz::read_json(response, buffer);
+    if (error)
+      response.error = "Daemon responded: " + glz::format_error(error, buffer);
+  } else {
+    response.error = "Daemon did not respond.";
+  }
   return response;
 }
 

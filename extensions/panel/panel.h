@@ -24,3 +24,5 @@ class Panel : public Extension {
   Panel();
   ~Panel();
 };
+
+// todo: expose tiles here. so user can use on custom extensions.

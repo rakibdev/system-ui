@@ -3,6 +3,7 @@
 
 #include "launcher.h"
 
+#include <algorithm>
 #include <filesystem>
 
 #include "../../src/theme.h"
@@ -11,19 +12,22 @@
 const std::string APPLICATIONS = "/usr/share/applications";
 const std::string USER_APPLICATIONS = HOME + "/.local/share/applications";
 
+auto getApp(std::vector<App>& apps, const std::string& filename) {
+  return std::find_if(apps.begin(), apps.end(), [&filename](const App& app) {
+    return app.file.ends_with(filename);
+  });
+}
+
 namespace Pinned {
-void intialize(const std::vector<App>& apps) {
+void intialize(std::vector<App>& apps) {
   auto& pinned = appData.get().pinnedApps;
   if (pinned.empty()) return;
 
   int8_t size = pinned.size();
-  for (int index = 0; index < size; index++) {
-    auto it = std::find_if(apps.begin(), apps.end(),
-                           [&filename = pinned[index]](const App& app) {
-                             return app.file.ends_with(filename);
-                           });
-    if (it == apps.end()) pinned.erase(pinned.begin() + index);
-  }
+  std::erase_if(pinned, [&apps](const std::string& filename) {
+    auto it = getApp(apps, filename);
+    return it == apps.end();
+  });
   if (pinned.size() != size) appData.save();
 }
 
@@ -57,54 +61,46 @@ std::string stripFieldCodes(std::string&& exec) {
   return exec;
 }
 
-void loadIcon(App& app) {
-  auto [file, theme] = Theme::createIcon(app.icon);
-  if (file.empty())
-    std::tie(file, theme) = Theme::createIcon("distributor-logo-archlinux");
-  app.icon = file;
-  app.color = theme["primary_40"];
-}
-
 void loadApps(std::vector<App>& apps, const std::string& directory) {
   for (const auto& it : std::filesystem::directory_iterator(directory)) {
-    bool desktopFile =
+    bool isDesktopEntry =
         it.is_regular_file() && it.path().extension() == ".desktop";
-    if (!desktopFile) continue;
+    if (!isDesktopEntry) continue;
 
-    App app;
-    app.file = it.path().string();
+    auto appIt = getApp(apps, it.path().filename());
+    if (appIt == apps.end()) {
+      apps.emplace_back(App{.file = it.path().string()});
+      appIt = apps.end() - 1;
+    }
+    App& app = *appIt;
+    std::string actionId = "";
     std::ifstream file(app.file);
     std::string line;
-    bool hidden = false;
     while (std::getline(file, line)) {
-      if (line.starts_with("[") && line != "[Desktop Entry]") break;
-      if (line.starts_with("Name=")) app.label = line.substr(5);
-      if (line.starts_with("Icon=")) {
-        app.icon = line.substr(5);
-        loadIcon(app);
-      };
-      if (line.starts_with("Exec="))
-        app.command = stripFieldCodes(line.substr(5));
-      if (line.starts_with("NoDisplay=")) hidden = line == "NoDisplay=true";
-    }
-    if (hidden) continue;
-
-    bool override = false;
-    for (App& current : apps) {
-      override = current.file.ends_with(it.path().filename().string());
-      if (override) {
-        current.file = app.file;
-        if (!app.label.empty()) current.label = app.label;
-        if (!app.icon.empty() && current.icon != app.icon) {
-          current.icon = app.icon;
-          loadIcon(current);
-        }
-        if (!app.command.empty()) current.command = app.command;
+      constexpr std::string_view action = "[Desktop Action";
+      if (line.starts_with(action)) {
+        constexpr uint8_t start = action.length() + 1;  // after space
+        uint8_t end = line.length() - 1;                // before ]
+        actionId = line.substr(start, end - start);
+      } else if (line.starts_with("Name=")) {
+        std::string label = line.substr(5);
+        if (actionId.empty())
+          app.label = label;
+        else
+          app.actions[actionId].label = label;
+      } else if (line.starts_with("Exec=")) {
+        std::string exec = stripFieldCodes(line.substr(5));
+        if (actionId.empty())
+          app.exec = exec;
+        else
+          app.actions[actionId].exec = exec;
+      } else if (line.starts_with("Icon=")) {
+        if (actionId.empty()) app.icon = line.substr(5);
+      } else if (line.starts_with("NoDisplay=true")) {
+        apps.erase(appIt);
         break;
       }
     }
-
-    if (!override) apps.emplace_back(app);
   }
 }
 
@@ -118,6 +114,8 @@ void Launcher::openContextMenu(App& app, GdkEventButton* event) {
     menu->childrens.clear();
   else {
     menu = std::make_unique<Menu>();
+    menu->addClass("app-menu");
+    menu->onHide([this]() { input->focus(); });
   }
   {
     auto item = Pinned::is(app.file)
@@ -137,7 +135,17 @@ void Launcher::openContextMenu(App& app, GdkEventButton* event) {
     });
     menu->add(std::move(item));
   }
+  if (app.actions.size()) {
+    menu->add(std::make_unique<MenuSeparator>());
+    for (const auto& action : app.actions) {
+      auto item = std::make_unique<MenuItem>(action.second.label);
+      item->addClass("no-icon");
+      item->onClick([&action, this]() { launch(action.second.exec); });
+      menu->add(std::move(item));
+    }
+  }
   menu->visible();
+  app.element->focus();
 }
 
 bool searchQuery(std::string text, std::string query) {
@@ -174,7 +182,7 @@ void Launcher::update(bool sort) {
       continue;
 
     auto icon = std::make_unique<Icon>();
-    icon->file(app.icon);
+    icon->file(app.themedIcon);
     icon->style("@define-color primary_40 " + app.color + "; " + icon->css);
     gtk_widget_set_halign(icon->widget, GTK_ALIGN_CENTER);
 
@@ -187,8 +195,10 @@ void Launcher::update(bool sort) {
     box->add(std::move(label));
 
     auto eventBox = std::make_unique<EventBox>();
-    eventBox->onHover([&app](bool) { app.element->addClass("hover"); });
-    eventBox->onHoverOut([&app](bool) { app.element->removeClass("hover"); });
+    eventBox->onHover(
+        [&app](bool) { app.element->addState(GTK_STATE_FLAG_PRELIGHT); });
+    eventBox->onHoverOut(
+        [&app](bool) { app.element->removeState(GTK_STATE_FLAG_PRELIGHT); });
     eventBox->onPointerDown([&app, this](GdkEventButton* event) {
       if (event->button == GDK_BUTTON_SECONDARY) openContextMenu(app, event);
     });
@@ -210,7 +220,7 @@ std::unique_ptr<FlowBox> Launcher::createGrid() {
   grid->onChildClick([this](GtkFlowBoxChild* child) {
     for (auto& app : apps) {
       if (child == (GtkFlowBoxChild*)app.element->widget) {
-        launch(app.command);
+        launch(app.exec);
         break;
       }
     }
@@ -278,6 +288,20 @@ void Launcher::onActivate() {
   input->focus();
 }
 
+void Launcher::updateIcons() {
+  for (auto& app : apps) {
+    auto [file, theme] = Theme::createIcon(app.icon);
+    if (file.empty()) std::tie(file, theme) = Theme::createIcon("supertux");
+    app.themedIcon = file;
+    app.color = theme["primary_40"];
+  }
+}
+
+void Launcher::onThemeChange() {
+  updateIcons();
+  if (window) update();
+}
+
 void Launcher::onDeactivate() {
   menu.reset();
   window.reset();
@@ -287,6 +311,7 @@ Launcher::Launcher() {
   keepAlive = true;
   loadApps(apps, APPLICATIONS);
   loadApps(apps, USER_APPLICATIONS);
+  updateIcons();
   Pinned::intialize(apps);
 }
 

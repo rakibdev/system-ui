@@ -9,10 +9,18 @@
 struct App {
   std::string file;
   std::string label;
+  std::string exec;
   std::string icon;
+  std::filesystem::path themedIcon;
+  // todo: add colored or monochrome option.
   std::string color;
-  std::string command;
   FlowBoxChild* element;
+
+  struct Action {
+    std::string label;
+    std::string exec;
+  };
+  std::map<std::string, Action> actions;
 };
 
 class Launcher : public Extension {
@@ -26,10 +34,12 @@ class Launcher : public Extension {
   void openContextMenu(App& app, GdkEventButton* event);
   void update(bool sort = true);
   std::unique_ptr<FlowBox> createGrid();
+  void updateIcons();
 
  public:
   Launcher();
   ~Launcher();
   void onActivate();
   void onDeactivate();
+  void onThemeChange();
 };

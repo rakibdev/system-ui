@@ -65,6 +65,16 @@ void Element::tooltip(const std::string &text) {
 
 void Element::focus() { gtk_widget_grab_focus(widget); }
 
+void Element::addState(GtkStateFlags flag) {
+  GtkStateFlags flags = gtk_widget_get_state_flags(widget);
+  if (!(flags & flag)) gtk_widget_set_state_flags(widget, flag, false);
+}
+
+void Element::removeState(GtkStateFlags flag) {
+  GtkStateFlags flags = gtk_widget_get_state_flags(widget);
+  if (flags & flag) gtk_widget_unset_state_flags(widget, flag);
+}
+
 void PointerEvents::onPointerDown(const PointerCallback &callback) {
   pointerDownCallback = callback;
   gtk_widget_add_events(widget, GDK_BUTTON_PRESS_MASK);
@@ -145,6 +155,16 @@ void KeyboardEvents::onKeyDown(const Callback &callback) {
                      return GDK_EVENT_PROPAGATE;
                    }),
                    this);
+}
+
+void VisibilityEvents::onHide(const std::function<void()> &callback) {
+  hideCallback = callback;
+  auto hide = [](GtkWidget *widget, gpointer data) -> gboolean {
+    VisibilityEvents *_this = static_cast<VisibilityEvents *>(data);
+    _this->hideCallback();
+    return GDK_EVENT_PROPAGATE;
+  };
+  g_signal_connect(widget, "hide", G_CALLBACK(+hide), this);
 }
 
 Box::Box(GtkOrientation orientation) {
@@ -465,9 +485,11 @@ void MenuItem::onClick(const std::function<void()> &callback) {
                            this);
 }
 
+MenuSeparator::MenuSeparator() { widget = gtk_separator_menu_item_new(); }
+
 Menu::Menu() { widget = gtk_menu_new(); }
 
-void Menu::add(std::unique_ptr<MenuItem> &&child) {
+void Menu::add(std::unique_ptr<Element> &&child) {
   gtk_menu_shell_append((GtkMenuShell *)widget, child->widget);
   child->visible();
   childrens.emplace_back(std::move(child));

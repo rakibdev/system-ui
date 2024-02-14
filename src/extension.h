@@ -21,6 +21,8 @@ class Extension {
   virtual void onDeactivate(){};
   virtual ~Extension() = default;
 
+  virtual void onThemeChange(){};
+
   // internal
   bool active = false;
   void activate();

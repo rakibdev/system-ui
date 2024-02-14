@@ -11,6 +11,8 @@
 #include "../libs/material-color-utilities/cpp/quantize/celebi.h"
 #include "../libs/material-color-utilities/cpp/score/score.h"
 #include "build.h"
+#include "daemon.h"
+#include "extension.h"
 #include "utils.h"
 
 using material_color_utilities::Hct;
@@ -121,7 +123,8 @@ template AppData::Theme fromImage(GdkPixbuf *source, uint16_t height);
 template AppData::Theme fromImage(cairo_surface_t *source, uint16_t height);
 
 constexpr uint8_t iconSize = 64;
-std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
+std::tuple<std::filesystem::path, AppData::Theme> createIcon(
+    const std::string &name, IconStyle style) {
   GError *error = nullptr;
   GdkPixbuf *internalPixbuf =
       gtk_icon_theme_load_icon(gtk_icon_theme_get_default(), name.c_str(),
@@ -135,8 +138,14 @@ std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
 
   int width = gdk_pixbuf_get_width(pixbuf);
   int height = gdk_pixbuf_get_height(pixbuf);
-  AppData::Theme theme = fromImage(pixbuf, height);
-  Rgb iconColor = rgbFromHex(theme["primary_80"]);
+
+  AppData::Theme theme;
+  if (style == IconStyle::Monochrome)
+    theme = appData.get().theme;
+  else if (style == IconStyle::Colored)
+    theme = fromImage(pixbuf, height);
+
+  Rgb color = rgbFromHex(theme["primary_80"]);
 
   unsigned char *pixels = gdk_pixbuf_get_pixels(pixbuf);
   int stride = gdk_pixbuf_get_rowstride(pixbuf);
@@ -159,9 +168,9 @@ std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
         a = std::min(255.0f, a * intensity);
       }
 
-      pixel[0] = iconColor.r;
-      pixel[1] = iconColor.g;
-      pixel[2] = iconColor.b;
+      pixel[0] = color.r;
+      pixel[1] = color.g;
+      pixel[2] = color.b;
       pixel[3] = a;
     }
   }
@@ -173,14 +182,15 @@ std::tuple<std::string, AppData::Theme> createIcon(const std::string &name) {
   return std::make_tuple(file, theme);
 };
 
-// todo: delete themed icons when setting theme color.
-// also theme doesn't work if without quotes.
+// also theme doesn't work if hex is without quotes.
 
 AppData::Theme &getOrCreate(const std::string &color) {
   AppData &data = appData.get();
   if (data.theme["primary_40"].empty() || !color.empty()) {
     data.theme = fromColor(color.empty() ? defaultColor : color);
     appData.save();
+    for (const auto &it : Extensions::manager->extensions)
+      it.second->onThemeChange();
     Build::start();
   }
   return data.theme;

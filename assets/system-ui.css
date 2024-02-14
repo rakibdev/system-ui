@@ -163,8 +163,8 @@ window {
   border-radius: 24px;
 }
 
-.launcher .app:focus,
-.launcher .app.hover {
+.launcher .app:hover,
+.launcher .app:focus {
   background-color: @primary_surface_2;
 }
 
@@ -178,4 +178,8 @@ window {
 .launcher .app .name {
   font-size: 12px;
   margin-top: 8px;
+}
+
+.app-menu menuitem.no-icon {
+  padding-left: 40px;
 }

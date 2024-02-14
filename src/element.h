@@ -32,6 +32,13 @@ class Element {
   void size(int16_t width, int16_t height);
   void tooltip(const std::string &text);
   void focus();
+
+  /*
+    Equivalent CSS selectors:
+    GTK_STATE_FLAG_PRELIGHT - :hover
+  */
+  void addState(GtkStateFlags flag);
+  void removeState(GtkStateFlags flag);
 };
 
 class PointerEvents : virtual public Element {
@@ -69,6 +76,13 @@ class KeyboardEvents : virtual public Element {
 
  public:
   void onKeyDown(const Callback &callback);
+};
+
+class VisibilityEvents : public virtual Element {
+  std::function<void()> hideCallback;
+
+ public:
+  void onHide(const std::function<void()> &callback);
 };
 
 class Box : public Element {
@@ -195,10 +209,15 @@ class MenuItem : public Element {
   void onClick(const std::function<void()> &callback);
 };
 
-class Menu : public Element {
+class MenuSeparator : public Element {
+ public:
+  MenuSeparator();
+};
+
+class Menu : public VisibilityEvents {
  public:
   Menu();
-  void add(std::unique_ptr<MenuItem> &&child);
+  void add(std::unique_ptr<Element> &&child);
   void visible(bool value = true) override;
 };
 

@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <string>
 
+#include "extension.h"
+
 namespace Daemon {
 struct Request {
   std::string command;
@@ -19,4 +21,8 @@ struct Response {
 };
 Response request(const Request& request);
 void initialize();
+}
+
+namespace Extensions {
+extern std::unique_ptr<ExtensionManager> manager;
 }

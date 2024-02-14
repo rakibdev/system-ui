@@ -12,12 +12,8 @@ BluetoothDevice &findOrCreateDevice(const std::string &path,
   auto it = std::find_if(
       devices.begin(), devices.end(),
       [&path](const BluetoothDevice &device) { return device.path == path; });
-  if (it != devices.end())
-    return *it;
-  else {
-    devices.emplace_back(BluetoothDevice{.path = path});
-    return devices.back();
-  }
+  if (it != devices.end()) return *it;
+  return devices.emplace_back(BluetoothDevice{.path = path});
 }
 
 void BluetoothController::parseDevice(const std::string &path,
