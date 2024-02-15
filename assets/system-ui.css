@@ -7,14 +7,13 @@ window {
   color: @neutral_40;
 }
 
-.icon.file {
+.icon.image {
   background-size: 24px;
   background-repeat: no-repeat;
   background-position: center;
 }
 
-.icon.font,
-.icon .font {
+.icon label {
   font: 18px Material Symbols Outlined;
 }
 
@@ -26,21 +25,8 @@ window {
   margin-left: 8px;
 }
 
-.button.tonal,
-.button:not(.filled):hover {
-  background-color: @primary_surface_3;
-}
-
-.button.tonal:hover {
-  background-color: @primary_surface_4;
-}
-
 .button.filled {
   background-color: @primary_40;
-  color: @primary_surface;
-}
-
-.button.filled .icon .font {
   color: @primary_surface;
 }
 
@@ -60,14 +46,14 @@ window {
 }
 
 .panel.expanded .container {
-  /* larger mouseout area */
-  padding: 0 0 80px 80px;
+  /* large mouseout area */
+  padding: 0 0 100px 100px;
 }
 
 .panel .body {
-  border-radius: 24px;
   color: @neutral_20;
   background-color: @primary_surface_0;
+  border-radius: 24px;
 }
 
 .panel.expanded .body {
@@ -147,15 +133,16 @@ window {
 .launcher .search {
   background-color: @primary_surface_2;
   border-radius: 24px;
+  padding: 0 16px;
   margin: 8px;
 }
 
-.launcher .search .start-icon {
-  padding-left: 16px;
+.launcher .search entry {
+  padding: 0;
 }
 
-.launcher .grid.pinned {
-  border-bottom: 1px solid @primary_surface_2;
+.launcher .grid + .grid {
+  border-top: 1px solid @primary_surface_2;
 }
 
 .launcher .app {
@@ -182,4 +169,13 @@ window {
 
 .app-menu menuitem.no-icon {
   padding-left: 40px;
+}
+
+.launcher .placeholder {
+  padding: 24px;
+  color: @neutral_40;
+}
+
+.launcher .placeholder .icon label {
+  font-size: 40px;
 }

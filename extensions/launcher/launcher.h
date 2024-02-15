@@ -27,14 +27,16 @@ class Launcher : public Extension {
   std::unique_ptr<Window> window;
   std::unique_ptr<Menu> menu;
   std::vector<App> apps;
-  Input* input;
-  FlowBox* pinnedGrid;
+  Input* search;
+  Box* searchPlaceholder;
+  FlowBox* pinGrid;
   FlowBox* grid;
   void launch(const std::string& command);
   void openContextMenu(App& app, GdkEventButton* event);
   void update(bool sort = true);
-  std::unique_ptr<FlowBox> createGrid();
   void updateIcons();
+  std::unique_ptr<FlowBox> createGrid();
+  std::unique_ptr<Box> createSearch();
 
  public:
   Launcher();

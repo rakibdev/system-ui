@@ -115,7 +115,7 @@ void Launcher::openContextMenu(App& app, GdkEventButton* event) {
   else {
     menu = std::make_unique<Menu>();
     menu->addClass("app-menu");
-    menu->onHide([this]() { input->focus(); });
+    menu->onHide([this]() { search->focus(); });
   }
   {
     auto item = Pinned::is(app.file)
@@ -174,15 +174,15 @@ void Launcher::update(bool sort) {
               });
   }
 
-  pinnedGrid->childrens.clear();
+  pinGrid->childrens.clear();
   grid->childrens.clear();
 
   for (auto& app : apps) {
-    if (!input->value().empty() && !searchQuery(app.label, input->value()))
+    if (!search->value().empty() && !searchQuery(app.label, search->value()))
       continue;
 
     auto icon = std::make_unique<Icon>();
-    icon->file(app.themedIcon);
+    icon->setImage(app.themedIcon);
     icon->style("@define-color primary_40 " + app.color + "; " + icon->css);
     gtk_widget_set_halign(icon->widget, GTK_ALIGN_CENTER);
 
@@ -205,13 +205,15 @@ void Launcher::update(bool sort) {
     eventBox->add(std::move(box));
 
     FlowBoxChild* child = Pinned::is(app.file)
-                              ? pinnedGrid->add(std::move(eventBox))
+                              ? pinGrid->add(std::move(eventBox))
                               : grid->add(std::move(eventBox));
     child->addClass("app");
     app.element = child;
   }
 
-  pinnedGrid->visible(!pinnedGrid->childrens.empty());
+  pinGrid->visible(!pinGrid->childrens.empty());
+  searchPlaceholder->visible(pinGrid->childrens.empty() &&
+                             grid->childrens.empty());
 }
 
 std::unique_ptr<FlowBox> Launcher::createGrid() {
@@ -226,6 +228,45 @@ std::unique_ptr<FlowBox> Launcher::createGrid() {
     }
   });
   return grid;
+}
+
+std::unique_ptr<Box> Launcher::createSearch() {
+  auto box = std::make_unique<Box>();
+  box->addClass("search");
+
+  auto icon = std::make_unique<Icon>();
+  icon->addClass("start-icon");
+  icon->set("search");
+  box->add(std::move(icon));
+
+  auto _search = std::make_unique<Input>();
+  search = _search.get();
+  search->onChange([this] { update(false); });
+  search->onSubmit([this]() {
+    if (pinGrid->childrens.size())
+      gtk_widget_activate(pinGrid->childrens[0]->widget);
+    else if (grid->childrens.size())
+      gtk_widget_activate(grid->childrens[0]->widget);
+  });
+  box->add(std::move(_search));
+  return box;
+}
+
+std::unique_ptr<Box> createSearchPlaceholder() {
+  auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  box->addClass("placeholder");
+  box->gap(24);
+
+  auto icon = std::make_unique<Icon>();
+  icon->set("apps");
+  gtk_widget_set_halign(icon->widget, GTK_ALIGN_CENTER);
+  box->add(std::move(icon));
+
+  auto label = std::make_unique<Label>();
+  label->set("No results");
+  box->add(std::move(label));
+
+  return box;
 }
 
 void Launcher::onActivate() {
@@ -244,39 +285,23 @@ void Launcher::onActivate() {
   auto body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
   body->addClass("body");
   body->size(400, 500);
-  {
-    auto search = std::make_unique<Box>();
-    search->addClass("search");
-
-    auto icon = std::make_unique<Icon>();
-    icon->addClass("start-icon");
-    icon->set("search");
-    search->add(std::move(icon));
-
-    auto _input = std::make_unique<Input>();
-    input = _input.get();
-    input->onChange([this] { update(false); });
-    input->onSubmit([this]() {
-      if (pinnedGrid->childrens.size())
-        gtk_widget_activate(pinnedGrid->childrens[0]->widget);
-      else if (grid->childrens.size())
-        gtk_widget_activate(grid->childrens[0]->widget);
-    });
-    search->add(std::move(_input));
-
-    body->add(std::move(search));
-  }
+  body->add(createSearch());
   {
     auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
 
-    auto _pinnedGrid = createGrid();
-    pinnedGrid = _pinnedGrid.get();
-    pinnedGrid->addClass("grid pinned");
-    container->add(std::move(_pinnedGrid));
+    auto _pinGrid = createGrid();
+    pinGrid = _pinGrid.get();
+    pinGrid->addClass("grid");
+    container->add(std::move(_pinGrid));
 
     auto _grid = createGrid();
     grid = _grid.get();
+    grid->addClass("grid");
     container->add(std::move(_grid));
+
+    auto placeholder = createSearchPlaceholder();
+    searchPlaceholder = placeholder.get();
+    container->add(std::move(placeholder));
 
     auto scrollable = std::make_unique<ScrolledWindow>();
     scrollable->add(std::move(container));
@@ -285,7 +310,7 @@ void Launcher::onActivate() {
   window->add(std::move(body));
 
   update();
-  input->focus();
+  search->focus();
 }
 
 void Launcher::updateIcons() {
