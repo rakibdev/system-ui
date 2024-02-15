@@ -173,11 +173,11 @@ Box::Box(GtkOrientation orientation) {
 }
 
 void Box::gap(std::uint16_t value) {
-  gtk_box_set_spacing(GTK_BOX(widget), value);
+  gtk_box_set_spacing((GtkBox *)widget, value);
 }
 
 void Box::spaceEvenly(bool value) {
-  gtk_box_set_homogeneous(GTK_BOX(widget), value);
+  gtk_box_set_homogeneous((GtkBox *)widget, value);
 }
 
 void Box::prependChild(std::unique_ptr<Element> &&child) {
@@ -198,18 +198,17 @@ void Label::set(const std::string &value) {
 Icon::Icon() { addClass("icon"); }
 
 void Icon::set(const std::string &name) {
-  if (!font) {
-    auto label = std::make_unique<Label>();
-    font = label.get();
-    font->addClass("font");
-    add(std::move(label));
+  if (!label) {
+    auto _label = std::make_unique<Label>();
+    label = _label.get();
+    add(std::move(_label));
   }
-  font->set(name);
+  label->set(name);
 }
 
-void Icon::file(const std::string &path) {
+void Icon::setImage(const std::string &path) {
   GtkStyleContext *context = gtk_widget_get_style_context(widget);
-  if (!gtk_style_context_has_class(context, "file")) addClass("file");
+  if (!gtk_style_context_has_class(context, "image")) addClass("image");
   style("* { background-image: url(\"" + path + "\"); }");
 }
 
@@ -217,15 +216,19 @@ Button::Button(Type type, Variant variant, Size size) {
   widget = gtk_button_new();
 
   addClass("button");
-  if (variant == Tonal) addClass("tonal");
-  if (variant == Filled) addClass("filled");
+  if (variant == Filled)
+    addClass("filled");
+  else if (variant != Tonal) {
+    // Adds "flat" class.
+    gtk_button_set_relief((GtkButton *)widget, GTK_RELIEF_NONE);
+  }
   if (size == Small) addClass("small");
 
   auto _container = std::make_unique<Box>();
   container = _container.get();
 
   if (type == Type::Icon) {
-    addClass("icon font circle");
+    addClass("icon circle");
     gtk_widget_set_halign(container->widget, GTK_ALIGN_CENTER);
   }
 

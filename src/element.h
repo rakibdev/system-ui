@@ -101,10 +101,10 @@ class Label : public Element {
 
 class Icon : public Box {
  public:
-  Label *font = nullptr;
+  Label *label = nullptr;
   Icon();
   void set(const std::string &name);
-  void file(const std::string &path);
+  void setImage(const std::string &path);
 };
 
 class Button : public Element {
