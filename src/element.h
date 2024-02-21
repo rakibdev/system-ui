@@ -110,17 +110,15 @@ class Icon : public Box {
 class Button : public Element {
   std::function<void()> clickCallback;
 
- protected:
-  Box *content;
-
  public:
-  enum class Type { Text, Icon, TextIcon };
+  enum class Type { Text, Icon, IconText };
   enum Variant { None, Tonal, Filled };
   enum Size { Small, Medium };
   Box *container;
+  Box *content;
   Icon *startIcon = nullptr;
   Icon *endIcon = nullptr;
-  Button(Type type = Type::TextIcon, Variant variant = Tonal,
+  Button(Type type = Type::IconText, Variant variant = Tonal,
          Size size = Medium);
   void setContent(std::unique_ptr<Element> &&element);
   void setContent(const std::string &value);

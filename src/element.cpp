@@ -214,15 +214,16 @@ void Icon::setImage(const std::string &path) {
 
 Button::Button(Type type, Variant variant, Size size) {
   widget = gtk_button_new();
-
-  addClass("button");
   if (variant == Filled)
     addClass("filled");
   else if (variant != Tonal) {
-    // Adds "flat" class.
+    // GTK adds "flat" class.
     gtk_button_set_relief((GtkButton *)widget, GTK_RELIEF_NONE);
   }
   if (size == Small) addClass("small");
+
+  // Don't stretch childrens.
+  gtk_widget_set_valign(widget, GTK_ALIGN_CENTER);
 
   auto _container = std::make_unique<Box>();
   container = _container.get();
@@ -232,7 +233,7 @@ Button::Button(Type type, Variant variant, Size size) {
     gtk_widget_set_halign(container->widget, GTK_ALIGN_CENTER);
   }
 
-  if (type == Type::TextIcon) {
+  if (type == Type::IconText) {
     auto _startIcon = std::make_unique<Icon>();
     startIcon = _startIcon.get();
     _startIcon->addClass("start-icon");
@@ -243,13 +244,11 @@ Button::Button(Type type, Variant variant, Size size) {
   content = _content.get();
   container->add(std::move(_content));
 
-  if (type == Type::TextIcon) {
+  if (type == Type::IconText) {
     auto _endIcon = std::make_unique<Icon>();
     endIcon = _endIcon.get();
     _endIcon->addClass("end-icon");
     container->add(std::move(_endIcon));
-
-    gtk_widget_set_hexpand(content->widget, true);
   }
 
   add(std::move(_container));
