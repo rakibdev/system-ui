@@ -15,7 +15,6 @@
 #include "../../src/components/network.h"
 #include "../../src/element.h"
 #include "../../src/utils.h"
-#include "media-controls.h"
 #include "notifications.h"
 
 class Tile : public Button {
@@ -26,20 +25,19 @@ class Tile : public Button {
 
   void setActive(bool value) {
     active = value;
-    if (value) {
-      removeClass("tonal");
+    if (value)
       addClass("filled");
-    } else {
+    else
       removeClass("filled");
-      addClass("tonal");
-    }
   }
 
   Tile() {
     addClass("tile");
     gtk_orientable_set_orientation((GtkOrientable *)content->widget,
                                    GTK_ORIENTATION_VERTICAL);
-    gtk_widget_set_valign(content->widget, GTK_ALIGN_CENTER);
+
+    // End icon spacer.
+    gtk_widget_set_hexpand(content->widget, true);
 
     auto _label = std::make_unique<Label>();
     label = _label.get();
@@ -416,7 +414,7 @@ Label *label;
 std::string get() {
   std::ifstream file("/proc/uptime");
   if (!file.is_open()) {
-    Log::error("Uptime get: /proc/uptime file not found.");
+    Log::error("/proc/uptime file not found.");
     return "";
   }
 
@@ -427,7 +425,7 @@ std::string get() {
 
   std::stringstream ss;
   if (hours > 0)
-    ss << hours << ":" << minutes;
+    ss << hours << "h " << minutes << "m";
   else
     ss << minutes << "m";
   return ss.str();
@@ -443,72 +441,58 @@ std::unique_ptr<Label> create() {
 }
 }
 
-namespace Time {
-Label *label;
-
-std::string get() {
-  auto now =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  char buffer[100];
-  std::strftime(buffer, sizeof(buffer), "%I:%M", std::localtime(&now));
-  return buffer;
-}
-
-std::string getDate() {
-  std::time_t now = std::time(nullptr);
-  char buffer[100];
-  std::strftime(buffer, sizeof(buffer), "%A, %b %d", std::localtime(&now));
-  return buffer;
-}
+namespace TimeDate {
+Button *button;
 
 void update() {
-  label->set(get());
-  label->tooltip(getDate());
-}
+  std::time_t now;
+  std::time(&now);
+  struct tm *timeinfo = std::localtime(&now);
+  char time[80];
+  std::strftime(time, sizeof(time), "%I:%M", timeinfo);
+  char date[80];
+  std::strftime(date, sizeof(date), "%A, %b %d", timeinfo);
 
-std::unique_ptr<Label> create() {
-  auto _label = std::make_unique<Label>();
-  label = _label.get();
-  return _label;
+  button->setContent(time);
+  button->tooltip(date);
 }
-}
-
-namespace SystemColor {
-Button *button;
 
 std::unique_ptr<Button> create() {
   auto _button =
-      std::make_unique<Button>(Button::Type::Icon, Button::None, Button::Small);
+      std::make_unique<Button>(Button::Type::Text, Button::None, Button::Small);
   button = _button.get();
-  button->setContent("palette");
+  button->onClick(
+      []() { run("xdg-open https://calendar.google.com/calendar"); });
   return _button;
 }
 }
 
-void update() {
+void Panel::update() {
   CpuTile::update();
   RamTile::update();
-  MediaControls::updateSliders();
+
+  for (auto &player : mediaControls->players) player->updateSlider();
 }
 
 void Panel::beforeExpandStart() {
   window->addClass("expanded");
   for (const auto &child : body->childrens) child->visible();
 
-  MediaControls::listen();
+  mediaControls->activate();
   NetworkTile::listen();
   BluetoothTile::listen();
   NightLightTile::update();
   Uptime::update();
-  Time::update();
+  TimeDate::update();
   update();
   updateTimer = g_timeout_add(
       1000,
       [](gpointer data) -> gboolean {
-        update();
+        auto _this = static_cast<Panel *>(data);
+        _this->update();
         return G_SOURCE_CONTINUE;
       },
-      nullptr);
+      this);
 }
 
 void Panel::beforeCollapseStart() {
@@ -516,7 +500,7 @@ void Panel::beforeCollapseStart() {
     g_source_remove(updateTimer);
     updateTimer = 0;
   };
-  MediaControls::destroy();
+  mediaControls->deactivate();
   NetworkTile::destroy();
   BluetoothTile::destroy();
 }
@@ -545,67 +529,71 @@ void Panel::expand(bool value) {
 }
 
 Panel::Panel() {
-  auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  body = _body.get();
-  body->addClass("body");
-  body->gap(8);
-  {
-    auto grid = std::make_unique<FlowBox>();
-    grid->gap(8);
-    grid->columns(2);
-    grid->add(std::move(RamTile::create()));
-    grid->add(std::move(CpuTile::create()));
-    grid->add(std::move(NetworkTile::create()));
-    grid->add(std::move(BluetoothTile::create()));
-    grid->add(std::move(AudioTile::create()));
-    grid->add(std::move(NightLightTile::create()));
-    body->add(std::move(grid));
-  }
-  {
-    auto row = std::make_unique<Box>();
-    row->gap(8);
-
-    auto power = std::make_unique<Button>(Button::Type::Icon, Button::None,
-                                          Button::Small);
-    power->setContent("power_settings_new");
-    power->onClick([]() { run("poweroff"); });
-    row->add(std::move(power));
-
-    auto reboot = std::make_unique<Button>(Button::Type::Icon, Button::None,
-                                           Button::Small);
-    reboot->setContent("restart_alt");
-    reboot->onClick([]() { run("reboot"); });
-    row->add(std::move(reboot));
-
-    row->add(std::move(Uptime::create()));
-
-    auto spacer = std::make_unique<Box>();
-    gtk_widget_set_hexpand((GtkWidget *)spacer->widget, true);
-    row->add(std::move(spacer));
-
-    row->add(std::move(Time::create()));
-    row->add(std::move(SystemColor::create()));
-
-    body->add(std::move(row));
-  }
-  body->add(std::move(MediaControls::create()));
-  body->add(std::move(Notifications::create()));
-
-  auto container = std::make_unique<Box>();
-  container->addClass("container");
-  container->add(std::move(_body));
-
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
-  window->align(Align::End, Align::Top);
   window->addClass("panel");
+  window->align(Align::End, Align::Top);
   window->onHover([this](bool self) {
     if (self) expand(true);
   });
   window->onHoverOut([this](bool self) {
     if (self) expand(false);
   });
-  window->add(std::move(container));
   window->visible();
+
+  auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  body = _body.get();
+  body->addClass("body");
+  {
+    auto grid = std::make_unique<FlowBox>();
+    grid->gap(8);
+    grid->columns(2);
+    grid->add(RamTile::create());
+    grid->add(CpuTile::create());
+    grid->add(NetworkTile::create());
+    grid->add(BluetoothTile::create());
+    grid->add(AudioTile::create());
+    grid->add(NightLightTile::create());
+    body->add(std::move(grid));
+  }
+  {
+    auto footer = std::make_unique<Box>();
+    footer->addClass("footer");
+    footer->gap(8);
+
+    auto power = std::make_unique<Button>(Button::Type::Icon, Button::None,
+                                          Button::Small);
+    power->setContent("power_settings_new");
+    power->onClick([]() { run("poweroff"); });
+    footer->add(std::move(power));
+
+    auto reboot = std::make_unique<Button>(Button::Type::Icon, Button::None,
+                                           Button::Small);
+    reboot->setContent("restart_alt");
+    reboot->onClick([]() { run("reboot"); });
+    footer->add(std::move(reboot));
+
+    footer->add(Uptime::create());
+
+    auto spacer = std::make_unique<Box>();
+    gtk_widget_set_hexpand((GtkWidget *)spacer->widget, true);
+    footer->add(std::move(spacer));
+
+    footer->add(TimeDate::create());
+
+    body->add(std::move(footer));
+  }
+  {
+    mediaControls = std::make_unique<MediaControls>();
+    body->add(mediaControls->create());
+  }
+
+  // body->add(std::move(Notifications::create()));
+
+  // Window doesn't support padding. So box container is used.
+  auto container = std::make_unique<Box>();
+  container->addClass("container");
+  container->add(std::move(_body));
+  window->add(std::move(container));
 
   onCollapse();
   transition = std::make_unique<Transition>(body);
@@ -622,6 +610,7 @@ Panel::~Panel() {
   // });
   // Audio::destroy();
   Notifications::destroy();
+  mediaControls.reset();
   transition.reset();
   window.reset();
 }
