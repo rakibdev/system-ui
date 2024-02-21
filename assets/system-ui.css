@@ -25,47 +25,20 @@ window {
   margin-left: 8px;
 }
 
-.button.filled {
+button.filled {
   background-color: @primary_40;
   color: @primary_surface;
 }
 
-.button.circle {
+button.circle {
   padding: 0;
   min-width: 40px;
   min-height: 40px;
 }
 
-.button.circle.small {
+button.circle.small {
   min-width: 32px;
   min-height: 32px;
-}
-
-.panel .container {
-  padding: 4px;
-}
-
-.panel.expanded .container {
-  /* large mouseout area */
-  padding: 0 0 100px 100px;
-}
-
-.panel .body {
-  color: @neutral_20;
-  background-color: @primary_surface_0;
-  border-radius: 24px;
-}
-
-.panel.expanded .body {
-  padding: 8px;
-}
-
-.panel .tile .body-small {
-  font-size: 12px;
-}
-
-.panel .tile.filled .body-small {
-  color: @neutral_80;
 }
 
 /* .dialog {
@@ -95,32 +68,68 @@ window {
   padding: 16px 24px 0 24px;
 }
 
-.dialog > .actions .button + .button {
+.dialog > .actions button + button {
   margin-left: 8px;
 }
 
-.player {
-  min-height: 100px;
+.panel .container {
+  padding: 4px;
+}
+
+.panel.expanded .container {
+  /* large mouseout area */
+  padding-left: 100px;
+  padding-bottom: 100px;
+}
+
+.panel .body {
+  color: @neutral_20;
+  background-color: @primary_surface_0;
+  border-radius: 24px;
+}
+
+.panel.expanded .body {
+  padding: 8px;
+}
+
+.panel .tile .body-small {
+  font-size: 12px;
+}
+
+.panel .tile.filled .body-small {
+  color: @primary_surface;
+}
+
+.panel .body .footer {
   margin-top: 8px;
+}
+
+.panel .player {
+  margin-top: 16px;
   padding: 16px;
   border-radius: 24px;
 }
 
-.player .artist {
-  margin-top: 4px;
-}
-
-.player .button {
+.panel .player .thumbnail {
+  min-width: 64px;
+  min-height: 64px;
+  border-radius: 8px;
+  background-size: contain;
+  background-position: center;
   margin-left: 16px;
 }
 
-.player trough {
-  min-height: 24px;
-  border-radius: 24px;
+.panel .player .thumbnail label {
+  font-size: 40px;
 }
 
-.player highlight {
-  border-radius: 24px;
+.panel .player .artist {
+  margin-top: 8px;
+}
+
+.panel .player trough {
+  min-height: 24px;
+  margin-top: 8px;
 }
 
 .launcher .body {
