@@ -28,47 +28,55 @@ const std::string DEFAULT_CSS = SHARE_DIR + "/system-ui.css";
 const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
 
 namespace Log {
+std::string type;
 std::string color;
-std::string prefix;
-bool fileLogging;
+bool fileMode;
 
 std::string getTime() {
-  auto current =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  char local[100];
-  std::strftime(local, sizeof(local), "%I:%M", std::localtime(&current));
-  return local;
+  std::time_t now;
+  std::time(&now);
+  char time[80];
+  std::strftime(time, sizeof(time), "%I:%M", std::localtime(&now));
+  return time;
 }
 
-void print(const std::string& message) {
-  if (fileLogging) {
+void print(const std::string& message, const std::source_location& location) {
+  std::string formatted = message;
+  if (type != "info") {
+    formatted =
+        std::filesystem::path(location.file_name()).filename().string() + ": " +
+        message;
+  }
+  if (fileMode) {
+    formatted = getTime() + " " + type + ": " + message;
     std::ofstream file(LOG_FILE, std::ios::app);
-    file << getTime() << " " << prefix + message << std::endl;
-  } else
-    std::cout << color << message << colorOff << std::endl;
+    file << formatted << std::endl;
+  } else {
+    std::cout << color << formatted << colorOff << std::endl;
+  }
 }
 
-void info(const std::string& message) {
+void info(const std::string& message, const std::source_location& location) {
   color = blue;
-  prefix = "info: ";
-  print(message);
+  type = "info";
+  print(message, location);
 }
 
-void error(const std::string& message) {
+void error(const std::string& message, const std::source_location& location) {
   color = red;
-  prefix = "error: ";
-  print(message);
+  type = "error";
+  print(message, location);
 }
 
-void warn(const std::string& message) {
+void warn(const std::string& message, const std::source_location& location) {
   color = yellow;
-  prefix = "warn: ";
-  print(message);
+  type = "warn";
+  print(message, location);
 }
 
-void enableFileLogging() {
+void enableFileMode() {
   prepareDirectory(LOG_FILE);
-  fileLogging = true;
+  fileMode = true;
 }
 }
 
@@ -94,8 +102,8 @@ std::string run(const std::string& command) {
   std::string result;
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"),
                                                 pclose);
-  if (pipe) {
-    Log::error("run \"" + command + "\": " + "pipe null.");
+  if (!pipe) {
+    Log::error("popen \"" + command + "\" failed.");
     return "";
   }
   while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)

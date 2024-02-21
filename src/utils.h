@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <source_location>
+
 #include "glaze/json.hpp"
 
 extern const std::string SHARE_DIR;
@@ -24,10 +26,13 @@ constexpr const char* red = "\033[1;31m";
 constexpr const char* yellow = "\033[1;33m";
 constexpr const char* pink = "\033[0;35m";
 constexpr const char* green = "\033[0;32m";
-void info(const std::string& message);
-void error(const std::string& message);
-void warn(const std::string& message);
-void enableFileLogging();
+void info(const std::string& message, const std::source_location& location =
+                                          std::source_location::current());
+void error(const std::string& message, const std::source_location& location =
+                                           std::source_location::current());
+void warn(const std::string& message, const std::source_location& location =
+                                          std::source_location::current());
+void enableFileMode();
 }
 
 template <typename Content>
