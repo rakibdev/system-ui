@@ -24,17 +24,36 @@ void Player::updateSlider() {
 }
 
 void Player::updateTheme() {
+  AppData::Theme theme;
+  bool thumbnailBackgroundDark = true;
+
   cairo_surface_t *surface =
       cairo_image_surface_create_from_png(controller->artUrl.c_str());
   int width = cairo_image_surface_get_width(surface);
   int height = cairo_image_surface_get_height(surface);
   bool fileNotFound = width == 0;
-  bool chromiumSplashArt = width == height && width == 256;
-  if (fileNotFound || chromiumSplashArt) {
-    cairo_surface_destroy(surface);
-    return;
-  };
-  AppData::Theme theme = Theme::fromImage(surface, height);
+  bool chromiumSplashArt = width == 256 && width == height;
+  bool invalidArt = fileNotFound || chromiumSplashArt;
+  if (invalidArt)
+    theme = appData.get().theme;
+  else {
+    cairo_surface_t *thumbnailSurface =
+        Theme::createThumbnail(surface, width, height);
+    theme = Theme::fromImage(thumbnailSurface);
+
+    int centerX = cairo_image_surface_get_width(thumbnailSurface) / 2;
+    int centerY = cairo_image_surface_get_height(thumbnailSurface) / 2;
+    int stride = cairo_image_surface_get_stride(thumbnailSurface);
+    unsigned char *pixels = cairo_image_surface_get_data(thumbnailSurface);
+    unsigned char *pixel = pixels + centerY * stride + centerX * 4;
+    int r = pixel[2];
+    int g = pixel[1];
+    int b = pixel[0];
+    float lightness = 0.21 * r + 0.72 * g + 0.07 * b;
+    thumbnailBackgroundDark = lightness < 100;
+
+    cairo_surface_destroy(thumbnailSurface);
+  }
   cairo_surface_destroy(surface);
 
   if (!cssProvider) {
@@ -56,41 +75,44 @@ void Player::updateTheme() {
       className + " trough { background-color: " + theme["primary_80"] + "; } ";
   css += className + " highlight { background-color: " + theme["primary_40"] +
          "; } ";
-  css += className + " .thumbnail { background-image: url('" +
-         controller->artUrl +
-         "'); background-color: " + theme["primary_surface"] + "; } ";
-  css += className + " .thumbnail label { color: " + theme["primary_surface"] +
+
+  css +=
+      className +
+      " .thumbnail { background-color: " + theme["primary_surface"] + "; " +
+      (invalidArt ? "} "
+                  : "background-image: url('" + controller->artUrl + "'); } ");
+
+  css += className + " .thumbnail label { color: " +
+         theme[thumbnailBackgroundDark ? "primary_40" : "primary_surface"] +
          "; } ";
+
   gtk_css_provider_load_from_data(cssProvider, css.c_str(), -1, nullptr);
 }
 
 void Player::update() {
-  bool statusSame = lastStatus == controller->status &&
-                    controller->status != PlayerController::Playing;
-  if (statusSame) return;
+  if (controller->status == PlayerController::Stopped) {
+    if (lastStatus == controller->status) return;
+    element->visible(false);
+  } else if (!controller->title.empty()) {
+    if (lastStatus == controller->status && controller->title == lastTitle &&
+        controller->artUrl == lastArtUrl)
+      return;
 
-  bool visibility = controller->status != PlayerController::Stopped;
-  element->visible(visibility);
-  for (const auto &child : element->childrens) child->visible(visibility);
-
-  bool detailsSame =
-      controller->title.empty() ||
-      controller->title == lastTitle && controller->artUrl == lastArtUrl;
-  if (detailsSame) return;
-
-  Log::info("update " + std::to_string(controller->status) + controller->title +
-            controller->artUrl);
-
-  if (controller->status == PlayerController::Playing) {
-    // Not thumbnail->childrens.clear()
+    element->visible();
+    // Only clear content childrens, not thumbnail->childrens.clear().
     thumbnail->content->childrens.clear();
     title->set(controller->title);
-    artist->set(controller->artist);
-    if (lastArtUrl != controller->artUrl) updateTheme();
-  } else if (controller->status == PlayerController::Paused) {
-    thumbnail->setContent("play_arrow");
-  }
+    if (controller->artist.empty())
+      artist->visible(false);
+    else {
+      artist->visible(true);
+      artist->set(controller->artist);
+    }
+    updateTheme();
 
+    if (controller->status == PlayerController::Paused)
+      thumbnail->setContent("play_arrow");
+  }
   lastStatus = controller->status;
   lastTitle = controller->title;
   lastArtUrl = controller->artUrl;

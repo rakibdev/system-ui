@@ -1,3 +1,5 @@
+@define-color primary_surface_0 mix(#000, @primary_80, 0.1);
+
 window {
   background-color: transparent;
 }
@@ -83,9 +85,9 @@ button.circle.small {
 }
 
 .panel .body {
+  border-radius: 24px;
   color: @neutral_20;
   background-color: @primary_surface_0;
-  border-radius: 24px;
 }
 
 .panel.expanded .body {
@@ -105,7 +107,7 @@ button.circle.small {
 }
 
 .panel .player {
-  margin-top: 16px;
+  margin-top: 8px;
   padding: 16px;
   border-radius: 24px;
 }
@@ -113,10 +115,10 @@ button.circle.small {
 .panel .player .thumbnail {
   min-width: 64px;
   min-height: 64px;
+  margin-left: 16px;
   border-radius: 8px;
   background-size: contain;
   background-position: center;
-  margin-left: 16px;
 }
 
 .panel .player .thumbnail label {

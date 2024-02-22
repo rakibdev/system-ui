@@ -3,17 +3,11 @@
 
 #include "theme.h"
 
-#include <gtk/gtk.h>
-
 #include <filesystem>
 
-#include "../libs/material-color-utilities/cpp/cam/hct.h"
-#include "../libs/material-color-utilities/cpp/quantize/celebi.h"
-#include "../libs/material-color-utilities/cpp/score/score.h"
 #include "build.h"
 #include "daemon.h"
 #include "extension.h"
-#include "utils.h"
 
 using material_color_utilities::Hct;
 
@@ -73,8 +67,6 @@ AppData::Theme fromColor(const std::string &hex) {
     }
 
     if (key != "neutral") {
-      theme[key + "_surface_0"] =
-          hexFromHct(hct.get_hue(), 10, inverseTone(104));
       theme[key + "_surface"] = hexFromHct(hct.get_hue(), 10, inverseTone(100));
       theme[key + "_surface_2"] =
           hexFromHct(hct.get_hue(), 15, inverseTone(95));
@@ -87,40 +79,25 @@ AppData::Theme fromColor(const std::string &hex) {
   return theme;
 }
 
-template <typename SurfaceOrPixbuf>
-AppData::Theme fromImage(SurfaceOrPixbuf *source, uint16_t height) {
-  int width = 24;
-  int _height = (height * width) / width;
-  cairo_surface_t *surface =
-      cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, _height);
-  cairo_t *cr = cairo_create(surface);
-  if constexpr (std::is_same_v<SurfaceOrPixbuf, GdkPixbuf>)
-    gdk_cairo_set_source_pixbuf(cr, source, 0, 0);
-  else
-    cairo_set_source_surface(cr, source, 0, 0);
-  cairo_paint(cr);
-
-  std::vector<uint32_t> pixels(width * _height);
+AppData::Theme fromImage(cairo_surface_t *surface) {
+  int width = cairo_image_surface_get_width(surface);
+  int height = cairo_image_surface_get_height(surface);
+  std::vector<uint32_t> pixels(width * height);
 
   unsigned char *data = cairo_image_surface_get_data(surface);
   int stride = cairo_image_surface_get_stride(surface);
-  for (int y = 0; y < _height; ++y) {
+  for (int y = 0; y < height; ++y) {
     uint32_t *row = (uint32_t *)(data + y * stride);
-    for (int x = 0; x < width; ++x) {
-      pixels[y * width + x] = row[x];
-    }
+    for (int x = 0; x < width; ++x) pixels[y * width + x] = row[x];
   }
-  cairo_destroy(cr);
-  cairo_surface_destroy(surface);
 
   material_color_utilities::QuantizerResult result =
       material_color_utilities::QuantizeCelebi(pixels, 40);
   std::vector<uint32_t> colors = material_color_utilities::RankedSuggestions(
-      result.color_to_count, {1, (int)argbFromHex(defaultColor), false});
+      result.color_to_count,
+      {.desired = 1, .fallback_color_argb = (int)argbFromHex(defaultColor)});
   return fromColor(hexFromArgb(colors[0]));
 }
-template AppData::Theme fromImage(GdkPixbuf *source, uint16_t height);
-template AppData::Theme fromImage(cairo_surface_t *source, uint16_t height);
 
 constexpr uint8_t iconSize = 64;
 std::tuple<std::filesystem::path, AppData::Theme> createIcon(
@@ -142,8 +119,11 @@ std::tuple<std::filesystem::path, AppData::Theme> createIcon(
   AppData::Theme theme;
   if (style == IconStyle::Monochrome)
     theme = appData.get().theme;
-  else if (style == IconStyle::Colored)
-    theme = fromImage(pixbuf, height);
+  else if (style == IconStyle::Colored) {
+    cairo_surface_t *thumbnail = createThumbnail(pixbuf, width, height);
+    theme = fromImage(thumbnail);
+    cairo_surface_destroy(thumbnail);
+  }
 
   Rgb color = rgbFromHex(theme["primary_80"]);
 
