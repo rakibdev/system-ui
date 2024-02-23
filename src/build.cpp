@@ -40,7 +40,7 @@ void patch(std::string& target, const std::string& source,
       bool end = source[sourceIndex] == '}';
       if (end) {
         if (variables.find(sourceVariable) == variables.end()) {
-          error = "\"" + sourceVariable + "\" is not defined";
+          error = "\"" + sourceVariable + "\" value is not defined.";
           break;
         } else {
           sourceVariable = variables[sourceVariable];
@@ -100,7 +100,7 @@ void build(const UserConfig::Build& config) {
       for (const auto& sourceLine : source) {
         std::string error;
         patch(line, sourceLine, variables, error);
-        if (!error.empty()) Log::error(error + " in " + sourceLine);
+        if (!error.empty()) Log::error(error);
       }
       target.emplace_back(line);
     }
