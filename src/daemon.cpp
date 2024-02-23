@@ -250,7 +250,7 @@ void onTerminateBySystem(int signal) { destroy(EXIT_SUCCESS); }
 
 void initialize() {
 #ifndef DEV
-  Log::enableFileLogging();
+  Log::enableFileMode();
   runProcessInBackground();
 #endif
   startServer();
