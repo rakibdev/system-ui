@@ -1,4 +1,14 @@
-https://github.com/rakibdev/material-code/assets/60188988/56918fe5-b8d2-4d2f-adba-7eebb99fdb3a
+_System wide theming_
+
+![](demo/system-wide-theming.png)
+
+_Launcher_
+
+![](demo/launcher.png)
+
+_Panel_
+
+![](demo/panel.png)
 
 ## Installation
 
