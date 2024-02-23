@@ -140,7 +140,8 @@ std::tuple<std::filesystem::path, AppData::Theme> createIcon(
 
       float lightness = 0.21 * r + 0.72 * g + 0.07 * b;
       if (lightness > 220) {
-        // turn white pixels transparent
+        // todo: Fix for white symbolic icons like media-record.
+        // Turn white pixels transparent.
         a = 0;
       } else if (a > 0) {
         a = 255 - lightness;

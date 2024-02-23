@@ -41,6 +41,7 @@ std::string getTime() {
 }
 
 void print(const std::string& message, const std::source_location& location) {
+  // todo: Use grey color for filename.
   std::string formatted = message;
   if (type != "info") {
     formatted =
