@@ -135,7 +135,7 @@ button.circle.small {
 }
 
 .launcher .body {
-  padding: 8px;
+  padding: 4px;
   border-radius: 24px;
   color: @neutral_20;
   background-color: @primary_surface_0;
@@ -167,9 +167,10 @@ button.circle.small {
 }
 
 .launcher .app .icon {
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
+  background-size: 28px;
   background-color: @primary_40;
 }
 
