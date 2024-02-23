@@ -10,7 +10,7 @@ add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3",  {system = true
 
 local pcFile = "/lib/pkgconfig/system-ui.pc"
 local headerDir = "include/system-ui"
-local shareDir = "/usr/share/system-ui"
+local shareDir = "share/system-ui"
 
 function createPkgConfig(target)
     local file = io.open(target:installdir() .. pcFile, 'w')
