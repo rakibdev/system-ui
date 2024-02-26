@@ -1,0 +1,71 @@
+diff --git a/cpp/quantize/wsmeans.cc b/cpp/quantize/wsmeans.cc
+index f6381b7..3624362 100644
+--- a/cpp/quantize/wsmeans.cc
++++ b/cpp/quantize/wsmeans.cc
+@@ -27,7 +27,6 @@
+ #include <unordered_set>
+ #include <vector>
+ 
+-#include "absl/container/flat_hash_map.h"
+ #include "cpp/quantize/lab.h"
+ 
+ constexpr int kMaxIterations = 100;
+@@ -64,7 +63,7 @@ QuantizerResult QuantizeWsmeans(const std::vector<Argb>& input_pixels,
+   }
+ 
+   uint32_t pixel_count = input_pixels.size();
+-  absl::flat_hash_map<Argb, int> pixel_to_count;
++  std::unordered_map<Argb, int> pixel_to_count;
+   std::vector<uint32_t> pixels;
+   pixels.reserve(pixel_count);
+   std::vector<Lab> points;
+@@ -75,7 +74,7 @@ QuantizerResult QuantizeWsmeans(const std::vector<Argb>& input_pixels,
+     // std::unordered_map 10.2 ms
+     // absl::btree_map 9.0 ms
+     // absl::flat_hash_map 8.0 ms
+-    absl::flat_hash_map<Argb, int>::iterator it = pixel_to_count.find(pixel);
++    std::unordered_map<Argb, int>::iterator it = pixel_to_count.find(pixel);
+     if (it != pixel_to_count.end()) {
+       it->second++;
+ 
+diff --git a/cpp/utils/utils.cc b/cpp/utils/utils.cc
+index eaa892d..b6a38e6 100644
+--- a/cpp/utils/utils.cc
++++ b/cpp/utils/utils.cc
+@@ -24,8 +24,6 @@
+ #include <cstdio>
+ #include <string>
+ 
+-#include "absl/strings/str_cat.h"
+-
+ namespace material_color_utilities {
+ 
+ int RedFromInt(const Argb argb) { return (argb & 0x00ff0000) >> 16; }
+@@ -137,11 +135,6 @@ double RotationDirection(const double from, const double to) {
+   return increasing_difference <= 180.0 ? 1.0 : -1.0;
+ }
+ 
+-// Converts a color in ARGB format to a hexadecimal string in lowercase.
+-//
+-// For instance: hex_from_argb(0xff012345) == "ff012345"
+-std::string HexFromArgb(Argb argb) { return absl::StrCat(absl::Hex(argb)); }
+-
+ Argb IntFromLstar(const double lstar) {
+   double y = YFromLstar(lstar);
+   int component = Delinearized(y);
+diff --git a/cpp/utils/utils.h b/cpp/utils/utils.h
+index c890895..8ff46b9 100644
+--- a/cpp/utils/utils.h
++++ b/cpp/utils/utils.h
+@@ -124,11 +124,6 @@ double RotationDirection(const double from, const double to);
+  */
+ double LstarFromArgb(const Argb argb);
+ 
+-/**
+- * Returns the hexadecimal representation of a color.
+- */
+-std::string HexFromArgb(Argb argb);
+-
+ /**
+  * Linearizes an RGB component.
+  *

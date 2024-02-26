@@ -36,14 +36,26 @@ target("glaze")
     set_kind("object")
     add_includedirs("libs/glaze/include", {public = true})
 
+local materialColorUtilitiesDir = "libs/material-color-utilities"
 target("material-color-utilities")
     set_default(false)
     set_kind("object")
-    add_files("libs/material-color-utilities/cpp/**.cc")
-    add_includedirs("libs/material-color-utilities", {public = true})
+    add_files(materialColorUtilitiesDir .. "/cpp/utils/utils.cc")
+    add_files(materialColorUtilitiesDir .. "/cpp/cam/**.cc")
+    add_files(materialColorUtilitiesDir .. "/cpp/quantize/**.cc")
+    add_files(materialColorUtilitiesDir .. "/cpp/score/**.cc")
+    remove_files(materialColorUtilitiesDir .. "/cpp/**_test.cc" )
+    add_includedirs(materialColorUtilitiesDir, {public = true})
     
     -- fixes linking relocation error for shared "system-ui" target.
     add_cxxflags("-fPIC")
+
+    before_build(function (target)
+        local changes = os.iorun("git status --porcelain " .. materialColorUtilitiesDir)
+        if (#changes == 0) then
+            os.exec("git apply libs/material-color-utilities.patch --directory=" .. materialColorUtilitiesDir)
+        end
+    end)
 
 target("system-ui")
     set_kind("shared")
