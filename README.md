@@ -1,14 +1,14 @@
-_System wide theming_
-
 ![](demo/system-wide-theming.png)
 
-_Launcher_
+You see a black dot at top right corner? Hovering it smoothly reveals the panel. For a seamless fullscreen experience. No more taskbar distractions!
 
-![](demo/launcher.png)
-
-_Panel_
+### Panel
 
 ![](demo/panel.png)
+
+### Launcher
+
+![](demo/launcher.png)
 
 ## Installation
 
@@ -40,14 +40,20 @@ xmake uninstall --admin
 
 ## Extensions
 
+Highly extensible. Launcher, panel are extensions too. Generally extensions can be seen as GTK windows with access to System UI framework APIs.
+
 ### Create
 
 See [demo extension](demo/extension/) and [built-in extensions](extensions/).
 
 ### Use
 
-Put ".so" files in ~/.config/system-ui/extensions. Then
+Put compiled `.so` files in `~/.config/system-ui/extensions`.
 
-```
-system-ui extension demo
-```
+## Theming
+
+## CSS
+
+## Build
+
+TODO:
