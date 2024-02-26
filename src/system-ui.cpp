@@ -8,28 +8,44 @@
 #include "utils.h"
 
 void usage() {
-  std::string output;
-  auto addLine = [&output](const std::string& command,
-                           const std::string& subCommand = "",
-                           const std::string& value = "",
-                           const std::string& description = "") {
-    output += "\n" + std::string(Log::blue) + command;
-    if (subCommand != "") output += "  " + std::string(Log::green) + subCommand;
-    if (value != "") output += "  " + std::string(Log::pink) + value;
-  };
-  addLine("daemon", "start|stop");
-  addLine("extension", "panel|launcher|custom|custom.so|libcustom.so", "",
-          "Load or unload an extension.");
-  addLine("theme", "build", "\"#67abe8\"");
-  addLine("media", "play-pause|next|previous");
-  addLine("     ", "progress 0-100");
-  addLine("--help");
-  output += "\n\n";
-  addLine("Daemon logs: ", LOG_FILE);
-  addLine("App data: ", APP_DATA_FILE);
-  addLine("Icons: ", THEMED_ICONS);
-  addLine("Extensions: ", EXTENSIONS_DIR);
-  std::cout << output + "\n" << std::endl;
+  std::vector<std::vector<std::string>> table = {
+      {"daemon", "start|stop"},
+      {"extension", "panel|launcher|file|file.so", "Load or unload extension."},
+      {"theme", "\"#67abe8\"", "Generate theme."},
+      {"media", "play-pause|next|previous|progress 50", "MPRIS controls."},
+      {""},
+      {""},
+      {"Daemon Logs:", LOG_FILE},
+      {"App Data:", APP_DATA_FILE},
+      {"Icons:", THEMED_ICONS},
+      {"Extensions:", EXTENSIONS_DIR}};
+
+  std::vector<int> widths;
+  for (const auto& row : table) {
+    for (int column = 0; column < row.size(); column++) {
+      if (widths.size() <= column)
+        widths.push_back(row[column].length());
+      else
+        widths[column] =
+            std::max(widths[column], static_cast<int>(row[column].length()));
+    }
+  }
+
+  constexpr uint8_t gap = 2;
+
+  for (const auto& row : table) {
+    for (int column = 0; column < row.size(); column++) {
+      std::cout << std::left;
+      if (column == 0) {
+        std::cout << Log::blue;
+        std::cout << " ";
+      } else if (column == 1)
+        std::cout << Log::pink;
+      std::cout << std::setw(widths[column] + gap) << row[column]
+                << Log::colorOff;
+    }
+    std::cout << std::endl;
+  }
 }
 
 int main(int argc, char* argv[]) {

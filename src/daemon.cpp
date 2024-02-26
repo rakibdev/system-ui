@@ -227,9 +227,8 @@ Response request(const Request& request) {
     auto error = glz::read_json(response, buffer);
     if (error)
       response.error = "Daemon responded: " + glz::format_error(error, buffer);
-  } else {
+  } else
     response.error = "Daemon did not respond.";
-  }
   return response;
 }
 
