@@ -30,7 +30,7 @@ const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";
 namespace Log {
 std::string type;
 std::string color;
-bool fileMode;
+bool inFile = false;
 
 std::string getTime() {
   std::time_t now;
@@ -42,18 +42,15 @@ std::string getTime() {
 
 void print(const std::string& message, const std::source_location& location) {
   // todo: Use grey color for filename.
-  std::string formatted = message;
-  if (type != "info") {
-    formatted =
-        std::filesystem::path(location.file_name()).filename().string() + ": " +
-        message;
-  }
-  if (fileMode) {
-    formatted = getTime() + " " + type + ": " + message;
+  std::string filename =
+      std::filesystem::path(location.file_name()).filename().string() + ": ";
+  if (inFile) {
     std::ofstream file(LOG_FILE, std::ios::app);
-    file << formatted << std::endl;
+    file << getTime() + " " + type + ": " + filename + message << std::endl;
   } else {
-    std::cout << color << formatted << colorOff << std::endl;
+    std::cout << color << type << ": ";
+    if (type != "info") std::cout << grey << filename;
+    std::cout << colorOff << message << std::endl;
   }
 }
 
@@ -73,11 +70,6 @@ void warn(const std::string& message, const std::source_location& location) {
   color = yellow;
   type = "warn";
   print(message, location);
-}
-
-void enableFileMode() {
-  prepareDirectory(LOG_FILE);
-  fileMode = true;
 }
 }
 

@@ -9,17 +9,12 @@
 #include "extension.h"
 
 namespace Daemon {
-struct Request {
-  std::string command;
-  std::string subCommand;
-  std::string value;
-};
 struct Response {
   std::string info;
   std::string error;
   uint8_t code;
 };
-Response request(const Request& request);
+Response request(const std::string& content);
 void initialize();
 }
 

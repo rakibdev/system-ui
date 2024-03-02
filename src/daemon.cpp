@@ -11,11 +11,9 @@
 #include <unistd.h>
 
 #include <csignal>
-#include <cstring>
 
 #include "../extensions/launcher/launcher.h"
 #include "../extensions/panel/panel.h"
-#include "components/media.h"
 #include "glaze/json.hpp"
 #include "theme.h"
 #include "utils.h"
@@ -102,7 +100,7 @@ void destroy(int code) {
   exit(code);
 }
 
-void handleRequest(const Request& request, int client) {
+void onRequest(const std::string& content, int client) {
   auto respond = [client](const std::string&& key, const std::string& value,
                           int code = 0) {
     if (key == "error" && code == 0) code = 1;
@@ -110,20 +108,24 @@ void handleRequest(const Request& request, int client) {
                           "\", \"code\": " + std::to_string(code) + " }";
     send(client, content.c_str(), content.size(), 0);
   };
-  if (request.command == "daemon") {
-    if (request.subCommand == "start") {
-      respond("info", "Daemon already running.");
-      return;
-    }
-    if (request.subCommand == "stop") {
+
+  std::vector<std::string> command;
+  std::stringstream ss(content);
+  std::string word;
+  while (ss >> word) command.push_back(word);
+
+  if (command[0] == "daemon") {
+    if (command[1] == "start")
+      return respond("info", "Daemon already running.");
+    if (command[1] == "stop") {
       respond("info", "Daemon stopped.");
       destroy(EXIT_SUCCESS);
     }
   }
 
-  if (request.command == "extension") {
+  if (command[0] == "extension") {
     std::string error;
-    Extensions::loadOrUnload(request.subCommand, error);
+    Extensions::loadOrUnload(command[1], error);
     if (error.empty())
       respond("info", "");
     else
@@ -131,34 +133,16 @@ void handleRequest(const Request& request, int client) {
     return;
   }
 
-  if (request.command == "theme" && request.subCommand == "build") {
-    Theme::apply(request.value.empty() ? Theme::defaultColor : request.value);
-    respond("info", "");
-    return;
+  if (command[0] == "theme") {
+    Theme::apply(command[1].empty() ? Theme::defaultColor : command[1]);
+    return respond("info", "");
   }
 
-  if (request.command == "media") {
-    MediaController media;
-    auto players = media.getPlayers();
-    if (players.empty())
-      respond("error", "No active player found.");
-    else {
-      std::unique_ptr<PlayerController>& player = players.front();
-      if (request.subCommand == "play-pause") player->playPause();
-      if (request.subCommand == "next") player->next();
-      if (request.subCommand == "previous") player->previous();
-      if (request.subCommand == "progress")
-        player->progress(std::stoi(request.value));
-      respond("info", "");
-    }
-    return;
-  }
-
-  respond("error", "Unknown command.", 127);
+  respond("error", "Unhandled command.", 127);
 }
 
-gboolean onIncomingRequest(GIOChannel* channel, GIOCondition condition,
-                           gpointer data) {
+gboolean onServerEvent(GIOChannel* channel, GIOCondition condition,
+                       gpointer data) {
   if (condition & G_IO_IN) {
     int serverSocket = g_io_channel_unix_get_fd(channel);
     int client = accept(serverSocket, nullptr, nullptr);
@@ -167,9 +151,7 @@ gboolean onIncomingRequest(GIOChannel* channel, GIOCondition condition,
     ssize_t bytesRead = recv(client, buffer, sizeof(buffer) - 1, 0);
     buffer[bytesRead] = '\0';
 
-    Request request;
-    auto error = glz::read_json(request, buffer);
-    handleRequest(request, client);
+    onRequest(buffer, client);
 
     close(client);
   }
@@ -198,10 +180,10 @@ void startServer() {
   listen(server, 3);
 
   channel = g_io_channel_unix_new(server);
-  g_io_add_watch(channel, G_IO_IN, onIncomingRequest, nullptr);
+  g_io_add_watch(channel, G_IO_IN, onServerEvent, nullptr);
 }
 
-Response request(const Request& request) {
+Response request(const std::string& content) {
   struct sockaddr_un address;
   memset(&address, 0, sizeof(address));
   address.sun_family = AF_UNIX;
@@ -215,8 +197,7 @@ Response request(const Request& request) {
     return response;
   }
 
-  std::string requestContent = glz::write_json(request);
-  send(client, requestContent.c_str(), requestContent.size(), 0);
+  send(client, content.c_str(), content.size(), 0);
 
   char buffer[256];
   memset(buffer, 0, sizeof(buffer));
@@ -249,7 +230,9 @@ void onTerminateBySystem(int signal) { destroy(EXIT_SUCCESS); }
 
 void initialize() {
 #ifndef DEV
-  Log::enableFileMode();
+  prepareDirectory(LOG_FILE);
+  Log::inFile = true;
+
   runProcessInBackground();
 #endif
   startServer();

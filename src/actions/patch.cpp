@@ -1,12 +1,13 @@
 // Copyright (c) 2024 Rakib (github.com/rakibdev/system-ui)
 // SPDX-License-Identifier: MPL-2.0
 
-#include "build.h"
+#include "patch.h"
 
-#include "utils.h"
+#include "../utils.h"
 
-void patch(std::string& target, const std::string& source,
-           std::map<std::string, std::string>& variables, std::string& error) {
+void patchLine(std::string& target, const std::string& source,
+               const std::map<std::string, std::string>& variables,
+               std::string& error) {
   int targetIndex = 0;
   int sourceIndex = 0;
   int targetReplaceStart = -1;
@@ -43,7 +44,7 @@ void patch(std::string& target, const std::string& source,
           error = "\"" + sourceVariable + "\" value is not defined.";
           break;
         } else {
-          sourceVariable = variables[sourceVariable];
+          sourceVariable = variables.at(sourceVariable);
           sourceVariableStart = -1;
           targetReplaceStart = targetIndex;
         }
@@ -69,48 +70,31 @@ void patch(std::string& target, const std::string& source,
   }
 }
 
-void build(const UserConfig::Build& config) {
-  std::string targetPath = getAbsolutePath(config.target, CONFIG_DIR);
-  std::string sourcePath = getAbsolutePath(config.source, CONFIG_DIR);
-  std::ifstream targetFile(targetPath);
-  std::ifstream sourceFile(sourcePath);
-  if (!targetFile.is_open()) {
-    Log::error("Build target file not found: " + targetPath);
-    return;
-  }
-  if (!sourceFile.is_open()) {
-    Log::error("Build source file not found: " + sourcePath);
-    return;
-  }
-  if (config.action.empty()) {
-    Log::error("Build action missing: " + targetPath);
-    return;
-  }
-  if (config.action == "patch") {
-    std::map<std::string, std::string> variables;
-    for (const auto& [key, value] : appData.get().theme)
-      variables[key] = value.substr(1);
+void patch(const std::string& source, const std::string& target,
+           std::string& error) {
+  std::ifstream sourceFile(source);
+  std::ifstream targetFile(target);
+  if (!sourceFile.is_open()) return Log::error("File not found: " + source);
+  if (!targetFile.is_open()) return Log::error("File not found: " + target);
 
-    std::string line;
-    std::vector<std::string> source;
-    while (std::getline(sourceFile, line)) source.emplace_back(line);
+  std::map<std::string, std::string> variables;
+  for (const auto& [key, value] : appData.get().theme)
+    variables[key] = value.substr(1);
 
-    std::vector<std::string> target;
-    while (std::getline(targetFile, line)) {
-      for (const auto& sourceLine : source) {
-        std::string error;
-        patch(line, sourceLine, variables, error);
-        if (!error.empty()) Log::error(error);
-      }
-      target.emplace_back(line);
+  std::string line;
+
+  std::vector<std::string> sourceContent;
+  while (std::getline(sourceFile, line)) sourceContent.emplace_back(line);
+
+  std::vector<std::string> result;
+  while (std::getline(targetFile, line)) {
+    for (const auto& sourceLine : sourceContent) {
+      patchLine(line, sourceLine, variables, error);
+      if (!error.empty()) return;
     }
-
-    std::ofstream outfile(targetPath, std::ofstream::trunc);
-    for (const auto& line : target) outfile << line << "\n";
+    result.emplace_back(line);
   }
-}
 
-void Build::start() {
-  auto& builds = userConfig.get().builds;
-  for (const auto& config : builds) build(config);
+  std::ofstream output(target, std::ofstream::trunc);
+  for (const auto& line : result) output << line << "\n";
 }

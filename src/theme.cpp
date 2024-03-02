@@ -5,7 +5,6 @@
 
 #include <filesystem>
 
-#include "build.h"
 #include "daemon.h"
 #include "extension.h"
 
@@ -163,8 +162,6 @@ std::tuple<std::filesystem::path, AppData::Theme> createIcon(
   return std::make_tuple(file, theme);
 };
 
-// also theme doesn't work if hex is without quotes.
-
 AppData::Theme &getOrCreate(const std::string &color) {
   AppData &data = appData.get();
   if (data.theme["primary_40"].empty() || !color.empty()) {
@@ -172,7 +169,6 @@ AppData::Theme &getOrCreate(const std::string &color) {
     appData.save();
     for (const auto &it : Extensions::manager->extensions)
       it.second->onThemeChange();
-    Build::start();
   }
   return data.theme;
 }

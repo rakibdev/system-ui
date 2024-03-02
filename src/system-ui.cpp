@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+#include "actions/patch.h"
+#include "components/media.h"
 #include "daemon.h"
 #include "theme.h"
 #include "utils.h"
@@ -10,10 +12,21 @@
 void usage() {
   std::vector<std::vector<std::string>> table = {
       {"daemon", "start|stop"},
-      {"extension", "panel|launcher|file|file.so", "Load or unload extension."},
-      {"theme", "\"#67abe8\"", "Generate theme."},
-      {"media", "play-pause|next|previous|progress 50", "MPRIS controls."},
       {""},
+      {"theme", "\"#67abe8\"", "Generate theme."},
+      {""},
+      {"extension", "{name}", "Load or unload extension."},
+      {"", "panel|launcher", "Buit-in extensions."},
+      {"", "file|file.so", "\".so\" files in extensions directory."},
+      {""},
+      {"media", "{action}", "MPRIS controls."},
+      {"", "next"},
+      {"", "previous"},
+      {"", "play-pause"},
+      {"", "progress 50"},
+      {""},
+      {"patch", "./template ./target",
+       "Find & replace variables. For system-wide theming."},
       {""},
       {"Daemon Logs:", LOG_FILE},
       {"App Data:", APP_DATA_FILE},
@@ -53,19 +66,50 @@ int main(int argc, char* argv[]) {
     usage();
     return 0;
   }
-  Daemon::Request request;
-  if (argc > 2) {
-    request.command = std::string(argv[1]);
-    request.subCommand = std::string(argv[2]);
+
+  std::string command;
+  std::vector<std::string> args;
+  for (int i = 1; i < argc; i++) {
+    if (i > 1) command += " ";
+    command += argv[i];
+    args.push_back(argv[i]);
   }
-  if (argc > 3) request.value = std::string(argv[3]);
 
-  Daemon::Response response = Daemon::request(request);
+  if (args[0] == "patch") {
+    if (args.size() != 3) {
+      Log::error("Invalid amount of arguments.");
+      return 1;
+    }
+    std::string error;
+    patch(args[1], args[2], error);
+    if (error.empty())
+      return 0;
+    else {
+      Log::error(error);
+      return 1;
+    }
+  }
 
-  bool startDaemon =
-      request.command == "daemon" && request.subCommand == "start";
-  bool daemonRunning = response.error.empty();
-  if (startDaemon && !daemonRunning) {
+  if (args[0] == "media") {
+    MediaController media;
+    auto players = media.getPlayers();
+    if (players.empty()) {
+      Log::error("No active player found.");
+      return 1;
+    } else {
+      std::unique_ptr<PlayerController>& player = players.front();
+      if (args[1] == "play-pause") player->playPause();
+      if (args[1] == "next") player->next();
+      if (args[1] == "previous") player->previous();
+      if (args[1] == "progress") player->progress(std::stoi(args[2]));
+      return 0;
+    }
+  }
+
+  Daemon::Response response = Daemon::request(command);
+
+  bool success = response.error.empty();
+  if (command == "daemon start" && !success) {
     Log::info("Daemon started.");
     Daemon::initialize();
   } else {
