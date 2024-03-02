@@ -41,7 +41,6 @@ std::string getTime() {
 }
 
 void print(const std::string& message, const std::source_location& location) {
-  // todo: Use grey color for filename.
   std::string filename =
       std::filesystem::path(location.file_name()).filename().string() + ": ";
   if (inFile) {
@@ -49,7 +48,7 @@ void print(const std::string& message, const std::source_location& location) {
     file << getTime() + " " + type + ": " + filename + message << std::endl;
   } else {
     std::cout << color << type << ": ";
-    if (type != "info") std::cout << grey << filename;
+    if (type != "info") std::cout << gray << filename;
     std::cout << colorOff << message << std::endl;
   }
 }

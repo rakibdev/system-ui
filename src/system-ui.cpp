@@ -51,9 +51,11 @@ void usage() {
       std::cout << std::left;
       if (column == 0) {
         std::cout << Log::blue;
-        std::cout << " ";
+        std::cout << "  ";
       } else if (column == 1)
         std::cout << Log::pink;
+      else if (column == 2)
+        std::cout << Log::blueGray;
       std::cout << std::setw(widths[column] + gap) << row[column]
                 << Log::colorOff;
     }

@@ -23,12 +23,13 @@ namespace Log {
 extern bool inFile;
 
 constexpr const char* colorOff = "\033[0m";
-constexpr const char* blue = "\033[0;94m";
-constexpr const char* red = "\033[0;31m";
+constexpr const char* blue = "\033[1;34m";
+constexpr const char* blueGray = "\033[0;94m";
+constexpr const char* gray = "\033[0;90m";
+constexpr const char* red = "\033[1;31m";
 constexpr const char* yellow = "\033[0;33m";
 constexpr const char* pink = "\033[0;35m";
 constexpr const char* green = "\033[0;32m";
-constexpr const char* grey = "\033[0;90m";
 
 void info(const std::string& message, const std::source_location& location =
                                           std::source_location::current());
