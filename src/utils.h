@@ -24,7 +24,7 @@ extern bool inFile;
 
 constexpr const char* colorOff = "\033[0m";
 constexpr const char* blue = "\033[1;34m";
-constexpr const char* blueGray = "\033[0;94m";
+constexpr const char* lightBlue = "\033[0;94m";
 constexpr const char* gray = "\033[0;90m";
 constexpr const char* red = "\033[1;31m";
 constexpr const char* yellow = "\033[0;33m";

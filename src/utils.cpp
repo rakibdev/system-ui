@@ -104,19 +104,29 @@ std::string run(const std::string& command) {
 }
 
 void runNewProcess(const std::string& command) {
+  std::vector<char*> args;
+  std::string arg;
+  bool inQuotes = false;
+  for (int i = 0; i < command.length(); i++) {
+    auto character = command[i];
+    if ((character == ' ' && !inQuotes) || i == command.length() - 1) {
+      args.emplace_back(strdup(arg.c_str()));
+      arg.clear();
+    } else if (character == '"' || character == '\'')
+      inQuotes = !inQuotes;
+    else
+      arg += character;
+  }
+  args.emplace_back(nullptr);
+
   std::signal(SIGCHLD, SIG_IGN);
   pid_t pid;
-  std::vector<char*> argv;
-  std::istringstream iss(command);
-  std::string arg;
-  while (iss >> arg) argv.emplace_back(strdup(arg.c_str()));
-  argv.emplace_back(nullptr);
   int status =
-      posix_spawnp(&pid, argv[0], nullptr, nullptr, argv.data(), environ);
-  // todo: use __func__ to get name of current function
+      posix_spawnp(&pid, args[0], nullptr, nullptr, args.data(), environ);
   if (status != 0)
     Log::error("runNewProcess \"" + command + "\": " + "posix_spawnp failed.");
-  for (char* arg : argv) free(arg);
+
+  for (char* arg : args) free(arg);
 }
 
 Debouncer::Debouncer(uint ms, const std::function<void()>& callback)
