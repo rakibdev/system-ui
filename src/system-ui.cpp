@@ -110,16 +110,19 @@ int main(int argc, char* argv[]) {
 
   Daemon::Response response = Daemon::request(command);
 
-  bool success = response.error.empty();
-  if (command == "daemon start" && !success) {
-    Log::info("Daemon started.");
-    Daemon::initialize();
+  if (response.error.empty()) {
+    if (!response.info.empty()) Log::info(response.info);
   } else {
-    if (!response.error.empty()) {
+    if (command == "daemon start") {
+      Log::info("Daemon started.");
+      Daemon::initialize();
+    } else if (command == "daemon stop") {
+      Log::error("Daemon hasn't been started.");
+      return 1;
+    } else {
       Log::error(response.error);
       return response.code;
-    } else if (!response.info.empty())
-      Log::info(response.info);
+    }
   }
 
   return 0;

@@ -134,8 +134,11 @@ void onRequest(const std::string& content, int client) {
   }
 
   if (command[0] == "theme") {
-    Theme::apply(command[1].empty() ? Theme::defaultColor : command[1]);
-    return respond("info", "");
+    if (validateHex(command[1])) {
+      Theme::apply(command[1].empty() ? Theme::defaultColor : command[1]);
+      return respond("info", "");
+    } else
+      return respond("error", "Invalid color argument '" + command[1] + "'.");
   }
 
   respond("error", "Unhandled command.", 127);
@@ -207,9 +210,10 @@ Response request(const std::string& content) {
   if (strlen(buffer)) {
     auto error = glz::read_json(response, buffer);
     if (error)
-      response.error = "Daemon responded: " + glz::format_error(error, buffer);
+      response.error =
+          "Daemon responded invalid: " + glz::format_error(error, buffer);
   } else
-    response.error = "Daemon did not respond.";
+    response.error = "Daemon did not respond. Crashed?";
   return response;
 }
 
@@ -230,10 +234,10 @@ void onTerminateBySystem(int signal) { destroy(EXIT_SUCCESS); }
 
 void initialize() {
 #ifndef DEV
+  runProcessInBackground();
+
   prepareDirectory(LOG_FILE);
   Log::inFile = true;
-
-  runProcessInBackground();
 #endif
   startServer();
   std::signal(SIGTERM, onTerminateBySystem);

@@ -10,6 +10,7 @@
 #include "../libs/material-color-utilities/cpp/score/score.h"
 #include "utils.h"
 
+bool validateHex(const std::string& color);
 uint32_t argbFromHex(const std::string& hex);
 std::string hexFromArgb(uint32_t argb);
 

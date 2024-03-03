@@ -10,6 +10,14 @@
 
 using material_color_utilities::Hct;
 
+bool validateHex(const std::string &color) {
+  if (color.size() != 7 || color[0] != '#') return false;
+  for (int i = 1; i < color.size(); i++) {
+    if (!std::isalnum(color[i])) return false;
+  }
+  return true;
+}
+
 uint32_t argbFromHex(const std::string &hex) {
   return std::stoul(hex.substr(1), nullptr, 16);
 }
