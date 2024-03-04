@@ -2,14 +2,14 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "xmake build",
+      "label": "Build",
       "type": "shell",
       "group": "build",
       "command": "xmake config --mode=debug && xmake build",
       "presentation": { "clear": true }
     },
     {
-      "label": "xmake compile_commands",
+      "label": "Generate Compile Commands",
       "type": "shell",
       "group": "build",
       "command": "xmake project --kind=compile_commands ${workspaceFolder}",

@@ -93,7 +93,7 @@ void ExtensionManager::unload(const std::string& name) {
   bool dynamic = isDynamic(extensions[name]);
   void* handle = extensions[name]->handle;
 
-  // don't dlclose before destructing extension.
+  // Don't dlclose before destructing extension.
   extensions[name]->deactivate();
   extensions.erase(name);
 

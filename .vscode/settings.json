@@ -1,4 +1,0 @@
-{
-  // clangd extension
-  "editor.inlayHints.enabled": "off"
-}

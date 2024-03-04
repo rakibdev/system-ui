@@ -9,25 +9,6 @@ local pcFile = "/lib/pkgconfig/system-ui.pc"
 local headerDir = "include/system-ui"
 local shareDir = "share/system-ui"
 
-function createPkgConfig(target)
-    local file = io.open(target:installdir() .. pcFile, 'w')
-    if not file then return end
-    local requires = table.concat(target:get("packages"), ", ")
-    local content = string.format([[
-prefix=%s
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: system-ui
-Description: UI for Linux
-Version: 0.0.1
-Requires: %s
-Libs: -L${libdir} -lsystem-ui
-Cflags: -I${includedir}/system-ui]], target:installdir(), requires)
-    file:write(content)
-    file:close()
-end
-
 target("glaze")
     set_default(false)
     set_kind("object")
@@ -66,12 +47,31 @@ target("system-ui")
     -- fixes linking relocation error for .so extensions.
     add_cxxflags("-fPIC")
 
-    -- install
     add_installfiles("src/*.h", { prefixdir = headerDir })
     add_installfiles("src/components/*.h", {prefixdir = headerDir .. "/components"})
     add_installfiles("assets/shaders/*.frag", { prefixdir = shareDir .. "/shaders" })
     add_installfiles("assets/system-ui.css", { prefixdir = shareDir })
-    after_install(createPkgConfig)
+    after_install(function (target)
+        os.cp("libs/glaze/include/glaze/**.hpp", target:installdir() .. headerDir, {rootdir="libs/glaze/include"})
+
+        -- pkg-config file
+        local file = io.open(target:installdir() .. pcFile, 'w')
+        if not file then return end
+        local requires = table.concat(target:get("packages"), ", ")
+        local content = string.format([[
+prefix=%s
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: system-ui
+Description: UI for Linux
+Version: 0.0.1
+Requires: %s
+Libs: -L${libdir} -lsystem-ui
+Cflags: -I${includedir}/system-ui]], target:installdir(), requires)
+        file:write(content)
+        file:close()
+    end)
     after_uninstall(function (target)
         os.rm(target:installdir() .. "/" .. headerDir)
         os.rm(target:installdir() .. pcFile)

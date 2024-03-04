@@ -1,5 +1,4 @@
 {
-  "version": "0.2.0",
   "configurations": [
     {
       "name": "Debug",
@@ -7,7 +6,7 @@
       "request": "launch",
       "program": "build/linux/x86_64/debug/system-ui",
       "args": ["run", "daemon"],
-      "preLaunchTask": "xmake build"
+      "preLaunchTask": "Build"
     }
   ]
 }

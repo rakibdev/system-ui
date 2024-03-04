@@ -22,8 +22,8 @@ Optional
 
 - bluez
 - networkmanager
-- hyprland (night light)
-- ttf-material-symbols-variable-git (icons)
+- hyprland (Night Light)
+- ttf-material-symbols-variable-git (Icons)
 
 ```
 xmake config --mode=release
