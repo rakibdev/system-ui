@@ -123,8 +123,7 @@ void runNewProcess(const std::string& command) {
   pid_t pid;
   int status =
       posix_spawnp(&pid, args[0], nullptr, nullptr, args.data(), environ);
-  if (status != 0)
-    Log::error("runNewProcess \"" + command + "\": " + "posix_spawnp failed.");
+  if (status != 0) Log::error("posix_spawnp \"" + command + "\" failed.");
 
   for (char* arg : args) free(arg);
 }

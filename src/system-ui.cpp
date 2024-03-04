@@ -11,19 +11,18 @@
 
 void usage() {
   std::vector<std::vector<std::string>> table = {
-      {"daemon", "start|stop"},
-      {""},
-      {"theme", "\"#67abe8\"", "Generate theme."},
-      {""},
-      {"extension", "{name}", "Load or unload extension."},
+      {"run|exit", "{option}"},
+      {"", "daemon", "Background service."},
       {"", "panel|launcher", "Buit-in extensions."},
-      {"", "file|file.so", "\".so\" files in extensions directory."},
+      {"", "filename", "\".so\" libs in extensions directory."},
       {""},
       {"media", "{action}", "MPRIS controls."},
       {"", "next"},
       {"", "previous"},
       {"", "play-pause"},
       {"", "progress 50"},
+      {""},
+      {"theme", "\"#67abe8\"", "Generate theme."},
       {""},
       {"patch", "./template ./target",
        "Find & replace variables. For system-wide theming."},
@@ -113,10 +112,10 @@ int main(int argc, char* argv[]) {
   if (response.error.empty()) {
     if (!response.info.empty()) Log::info(response.info);
   } else {
-    if (command == "daemon start") {
-      Log::info("Daemon started.");
+    if (command == "run daemon") {
+      Log::info("Daemon running.");
       Daemon::initialize();
-    } else if (command == "daemon stop") {
+    } else if (command == "exit daemon") {
       Log::error("Daemon hasn't been started.");
       return 1;
     } else {

@@ -10,10 +10,10 @@
 class Extension {
  public:
   /*
-    allows daemon to cache extension instance.
-    as a result, Extension() called only once when first load, and ~Extension() when daemon stops.
-    but onActivate(), onDeactivate() is called on every load, unload.
-    see launcher.cpp for use case.
+    Allows daemon to cache extension instance.
+    As a result, Extension() called only once on first run, and ~Extension() when exiting daemon itself.
+    But onActivate(), onDeactivate() is called on every run.
+    In launcher.cpp keepAlive used for caching ".desktop" entries metadata even after exiting launcher.
   */
   bool keepAlive = false;
 
@@ -23,7 +23,7 @@ class Extension {
 
   virtual void onThemeChange(){};
 
-  // internal
+  // Internally used.
   bool active = false;
   void activate();
   void deactivate();

@@ -109,23 +109,21 @@ void onRequest(const std::string& content, int client) {
     send(client, content.c_str(), content.size(), 0);
   };
 
-  std::vector<std::string> command;
+  std::vector<std::string> args;
   std::stringstream ss(content);
   std::string word;
-  while (ss >> word) command.push_back(word);
+  while (ss >> word) args.push_back(word);
 
-  if (command[0] == "daemon") {
-    if (command[1] == "start")
+  if (args[0] == "run" || args[0] == "exit") {
+    if (content == "run daemon")
       return respond("info", "Daemon already running.");
-    if (command[1] == "stop") {
-      respond("info", "Daemon stopped.");
+    else if (content == "exit daemon") {
+      respond("info", "Daemon exited.");
       destroy(EXIT_SUCCESS);
     }
-  }
 
-  if (command[0] == "extension") {
     std::string error;
-    Extensions::loadOrUnload(command[1], error);
+    Extensions::loadOrUnload(args[1], error);
     if (error.empty())
       respond("info", "");
     else
@@ -133,12 +131,12 @@ void onRequest(const std::string& content, int client) {
     return;
   }
 
-  if (command[0] == "theme") {
-    if (validateHex(command[1])) {
-      Theme::apply(command[1].empty() ? Theme::defaultColor : command[1]);
+  if (args[0] == "theme") {
+    if (validateHex(args[1])) {
+      Theme::apply(args[1].empty() ? Theme::defaultColor : args[1]);
       return respond("info", "");
     } else
-      return respond("error", "Invalid color argument '" + command[1] + "'.");
+      return respond("error", "Invalid color argument '" + args[1] + "'.");
   }
 
   respond("error", "Unhandled command.", 127);
@@ -217,7 +215,7 @@ Response request(const std::string& content) {
   return response;
 }
 
-void runProcessInBackground() {
+void runInBackground() {
   pid_t pid = fork();
   if (pid < 0) exit(EXIT_FAILURE);
   if (pid > 0) exit(EXIT_SUCCESS);  // parent

@@ -40,20 +40,16 @@ xmake uninstall --admin
 
 ## Extensions
 
-Highly extensible. Launcher, panel are extensions too. Generally extensions can be seen as GTK windows with access to System UI framework APIs.
+Generally extensions can be seen as GTK windows with access to System UI framework APIs. Built-in launcher, panel are also extensions.
 
-### Create
+### Develop
 
-See [demo extension](demo/extension/) and [built-in extensions](extensions/).
+For guidance on creating and debugging extensions, refer to a demo extension [window-preview.](link)
 
-### Use
+### Usage
 
-Put compiled `.so` files in `~/.config/system-ui/extensions`.
+Place compiled .so files in the following directory:
 
-## Theming
-
-## CSS
-
-## Build
-
-TODO:
+```
+~/.config/system-ui/extensions
+```

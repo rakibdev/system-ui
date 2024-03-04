@@ -1,13 +1,10 @@
-add_rules("mode.debug", "mode.release")
-if is_mode("debug") then
-    add_defines("DEV")
-    set_installdir("install")
-else
-    set_installdir("/usr/")
-end
 set_languages("c++2b")
+add_rules("mode.debug", "mode.release")
+if is_mode("debug") then add_defines("DEV") end
+
 add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3",  {system = true})
 
+set_installdir("/usr/")
 local pcFile = "/lib/pkgconfig/system-ui.pc"
 local headerDir = "include/system-ui"
 local shareDir = "share/system-ui"

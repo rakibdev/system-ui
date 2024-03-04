@@ -6,7 +6,7 @@
       "type": "lldb",
       "request": "launch",
       "program": "build/linux/x86_64/debug/system-ui",
-      "args": ["daemon", "start"],
+      "args": ["run", "daemon"],
       "preLaunchTask": "xmake build"
     }
   ]
