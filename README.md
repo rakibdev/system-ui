@@ -12,7 +12,7 @@ You see a black dot at top right corner? Hovering it smoothly reveals the panel.
 
 ### CLI Interface
 
-![](demo/cli-interface.png.png)
+![](demo/cli-interface.png)
 
 ## Installation
 
