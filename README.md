@@ -10,6 +10,10 @@ You see a black dot at top right corner? Hovering it smoothly reveals the panel.
 
 ![](demo/launcher.png)
 
+### CLI Interface
+
+![](demo/cli-interface.png.png)
+
 ## Installation
 
 Required
