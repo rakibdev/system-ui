@@ -110,7 +110,7 @@ void runNewProcess(const std::string& command) {
   bool inQuotes = false;
   for (int i = 0; i < command.length(); i++) {
     auto character = command[i];
-    if ((character == ' ' && !inQuotes) || i == command.length() - 1) {
+    if ((character == ' ' && !inQuotes)) {
       args.emplace_back(strdup(arg.c_str()));
       arg.clear();
     } else if (character == '"' || character == '\'')
@@ -118,8 +118,10 @@ void runNewProcess(const std::string& command) {
     else
       arg += character;
   }
+  if (!arg.empty()) args.emplace_back(strdup(arg.c_str()));
   args.emplace_back(nullptr);
 
+  // todo: Display standard error dialog. Errors like "xdg-open /path/nonexistent"
   std::signal(SIGCHLD, SIG_IGN);
   pid_t pid;
   int status =

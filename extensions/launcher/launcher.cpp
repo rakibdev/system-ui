@@ -13,7 +13,7 @@
 const std::string APPLICATIONS = "/usr/share/applications";
 const std::string USER_APPLICATIONS = HOME + "/.local/share/applications";
 
-auto getApp(std::vector<App>& apps, const std::string& filename) {
+auto findApp(std::vector<App>& apps, const std::string& filename) {
   return std::find_if(apps.begin(), apps.end(), [&filename](const App& app) {
     return app.file.ends_with(filename);
   });
@@ -26,7 +26,7 @@ void intialize(std::vector<App>& apps) {
 
   int8_t size = pinned.size();
   std::erase_if(pinned, [&apps](const std::string& filename) {
-    auto it = getApp(apps, filename);
+    auto it = findApp(apps, filename);
     return it == apps.end();
   });
   if (pinned.size() != size) appData.save();
@@ -68,15 +68,16 @@ void loadApps(std::vector<App>& apps, const std::string& directory) {
         it.is_regular_file() && it.path().extension() == ".desktop";
     if (!isDesktopEntry) continue;
 
-    auto appIt = getApp(apps, it.path().filename());
+    auto appIt = findApp(apps, it.path().filename());
     if (appIt == apps.end()) {
-      apps.emplace_back(App{.file = it.path().string()});
+      apps.emplace_back();
       appIt = apps.end() - 1;
     }
     App& app = *appIt;
-    std::string actionId = "";
+    app.file = it.path().string();
     std::ifstream file(app.file);
     std::string line;
+    std::string actionId = "";
     while (std::getline(file, line)) {
       constexpr std::string_view action = "[Desktop Action";
       if (line.starts_with(action)) {

@@ -12,8 +12,7 @@
       "label": "Generate Compile Commands",
       "type": "shell",
       "group": "build",
-      "command": "xmake project --kind=compile_commands ${workspaceFolder}",
-      "presentation": { "close": true }
+      "command": "xmake project --kind=compile_commands ${workspaceFolder}"
     }
   ]
 }

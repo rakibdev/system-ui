@@ -233,7 +233,7 @@ void onTerminateBySystem(int signal) { destroy(EXIT_SUCCESS); }
 
 void initialize() {
 #ifndef DEV
-  runProcessInBackground();
+  runInBackground();
 
   prepareDirectory(LOG_FILE);
   Log::inFile = true;
