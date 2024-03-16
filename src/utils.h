@@ -66,6 +66,7 @@ class StorageManager {
 };
 
 struct AppData {
+  bool lightMode = false;
   using Theme = std::map<std::string, std::string>;
   std::vector<std::string> pinnedApps;
   Theme theme;

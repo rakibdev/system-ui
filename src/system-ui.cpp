@@ -12,26 +12,35 @@
 
 void usage() {
   std::vector<std::vector<std::string>> table = {
-      {"run|exit", "{option}"},
+      {"run|exit", ""},
       {"", "daemon", "Background service."},
       {"", "panel|launcher", "Buit-in extensions."},
-      {"", "filename", "\".so\" libs in extensions directory."},
+      {"", "{file}", "Extensions directory \".so\" files."},
       {""},
-      {"media", "{action}", "MPRIS controls."},
+      {"media", "", "MPRIS controls."},
       {"", "next"},
       {"", "previous"},
       {"", "play-pause"},
       {"", "progress 50"},
       {""},
-      {"theme", "\"#67abe8\"", "Generate theme."},
+      {"theme", "", "Generate & apply theme."},
+      {"", "{color}", "6-digit hex e.g. 67abe8."},
+      {"", "--mode", ""},
+      {"", "  dark", "Default."},
+      {"", "  light", ""},
       {""},
-      {"patch", "./template ./target",
-       "Find & replace variables. For system-wide theming."},
+      {"icon", "", "Create themed icon."},
+      {"", "{input}", ".svg, .png"},
+      {"", "{output}", ".png"},
+      {"", "--style", ""},
+      {"", "  outlined", "Default."},
       {""},
-      {"Daemon Logs:", LOG_FILE},
-      {"App Data:", APP_DATA_FILE},
-      {"Icons:", THEMED_ICONS},
-      {"Extensions:", EXTENSIONS_DIR}};
+      {"patch", "./template ./target", "Find & replace variables."},
+      {""},
+      {"Daemon Logs:", "", LOG_FILE},
+      {"App Data:", "", APP_DATA_FILE},
+      {"Icons:", "", THEMED_ICONS},
+      {"Extensions:", "", EXTENSIONS_DIR}};
 
   std::vector<int> widths;
   for (const auto& row : table) {

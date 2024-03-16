@@ -5,7 +5,7 @@
       "label": "Build",
       "type": "shell",
       "group": "build",
-      "command": "xmake build",
+      "command": "xmake config --mode=debug; xmake build",
       "presentation": { "clear": true, "reveal": "silent" }
     },
     {

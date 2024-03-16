@@ -38,8 +38,7 @@ void Player::updateTheme() {
   if (invalidArt)
     theme = appData.get().theme;
   else {
-    cairo_surface_t *thumbnailSurface =
-        Theme::createThumbnail(surface, width, height);
+    cairo_surface_t *thumbnailSurface = Theme::resize(surface, width, height);
     theme = Theme::fromImage(thumbnailSurface);
 
     int centerX = cairo_image_surface_get_width(thumbnailSurface) / 2;

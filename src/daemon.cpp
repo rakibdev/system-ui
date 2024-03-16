@@ -112,8 +112,8 @@ void onRequest(const std::string& content, int client) {
 
   std::vector<std::string> args;
   std::stringstream ss(content);
-  std::string word;
-  while (ss >> word) args.push_back(word);
+  std::string arg;
+  while (ss >> arg) args.push_back(arg);
 
   if (args[0] == "run" || args[0] == "exit") {
     if (content == "run daemon")
@@ -133,11 +133,28 @@ void onRequest(const std::string& content, int client) {
   }
 
   if (args[0] == "theme") {
-    if (validateHex(args[1])) {
-      Theme::apply(args[1].empty() ? Theme::defaultColor : args[1]);
-      return respond("info", "");
-    } else
-      return respond("error", "Invalid color argument '" + args[1] + "'.");
+    if (args.size() < 2)
+      return respond("error", "Invalid amount of arguments.");
+
+    if (!validateHex(args[1]))
+      // Double quotes causes JSON parse error, so use single.
+      return respond("error", "Invalid color '" + args[1] + "'.");
+
+    auto it = std::find(args.begin(), args.end(), "--mode");
+    if (it != args.end() && std::next(it) != args.end()) {
+      AppData& data = appData.get();
+      std::string value = *std::next(it);
+      if (value == "light")
+        data.lightMode = true;
+      else if (value == "dark")
+        data.lightMode = false;
+      else
+        return respond("error", "Unknown mode '" + value + "'.");
+      appData.save();
+    }
+
+    Theme::apply(args[1].empty() ? Theme::defaultColor : args[1]);
+    return respond("info", "");
   }
 
   respond("error", "Unhandled command.", 127);
@@ -161,7 +178,7 @@ gboolean onServerEvent(GIOChannel* channel, GIOCondition condition,
 }
 
 void startServer() {
-  // cleanup on start, not on destroy.
+  // Cleanup on start, not on destroy.
   unlink(SOCKET_FILE.c_str());
 
   struct sockaddr_un address;
@@ -172,13 +189,13 @@ void startServer() {
   strcpy(address.sun_path, SOCKET_FILE.c_str());
 
   // SOCK_CLOEXEC ensures the socket is not unintentionally left open in child processes.
-  // e.g. when launching app using posix_spawnp (launcher.cpp)
+  // e.g. When launching app using posix_spawnp (launcher.cpp).
   int server = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
   if (bind(server, (struct sockaddr*)&address, sizeof(address)) == -1) {
     Log::error("Unable to bind daemon socket.");
     destroy(EXIT_FAILURE);
   }
-  // max connection
+  // Max connection.
   listen(server, 3);
 
   channel = g_io_channel_unix_new(server);
@@ -219,9 +236,9 @@ Response request(const std::string& content) {
 void runInBackground() {
   pid_t pid = fork();
   if (pid < 0) exit(EXIT_FAILURE);
-  if (pid > 0) exit(EXIT_SUCCESS);  // parent
+  if (pid > 0) exit(EXIT_SUCCESS);  // Parent.
 
-  // child
+  // Child.
   umask(0);
   setsid();
   close(STDIN_FILENO);
@@ -244,7 +261,7 @@ void initialize() {
   g_setenv("GDK_BACKEND", "wayland", true);
   gtk_init(nullptr, nullptr);
 
-  // don't apply theme or css before gtk_init().
+  // Don't apply theme or css before gtk_init().
   // gdk_screen_get_default() is null before gtk_init.
   Theme::apply();
   userCssWatcher =
