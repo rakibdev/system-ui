@@ -15,7 +15,6 @@
 
 #include "../extensions/launcher/launcher.h"
 #include "../extensions/panel/panel.h"
-#include "glaze/json.hpp"
 #include "theme.h"
 #include "utils.h"
 

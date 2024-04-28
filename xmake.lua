@@ -1,18 +1,14 @@
 set_languages("c++2b")
+set_defaultmode("debug")
 add_rules("mode.debug", "mode.release")
 if is_mode("debug") then add_defines("DEV") end
 
-add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3",  {system = true})
+add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", {system = true})
 
 set_installdir("/usr/")
 local pcFile = "/lib/pkgconfig/system-ui.pc"
 local headerDir = "include/system-ui"
 local shareDir = "share/system-ui"
-
-target("glaze")
-    set_default(false)
-    set_kind("object")
-    add_includedirs("libs/glaze/include", {public = true})
 
 local materialColorUtilitiesDir = "libs/material-color-utilities"
 target("material-color-utilities")
@@ -25,7 +21,7 @@ target("material-color-utilities")
     remove_files(materialColorUtilitiesDir .. "/cpp/**_test.cc" )
     add_includedirs(materialColorUtilitiesDir, {public = true})
     
-    -- fixes linking relocation error for shared "system-ui" target.
+    -- Fixes linking relocation error for shared "system-ui" target.
     add_cxxflags("-fPIC")
 
     before_build(function (target)
@@ -40,11 +36,10 @@ target("system-ui")
     add_files("src/**.cpp")
     add_files("extensions/**.cpp")
 
-    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3")
-    add_deps("glaze")
+    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze")
     add_deps("material-color-utilities")
     
-    -- fixes linking relocation error for .so extensions.
+    -- Fixes linking relocation error for .so extensions.
     add_cxxflags("-fPIC")
 
     add_installfiles("src/*.h", { prefixdir = headerDir })
@@ -52,9 +47,7 @@ target("system-ui")
     add_installfiles("assets/shaders/*.frag", { prefixdir = shareDir .. "/shaders" })
     add_installfiles("assets/system-ui.css", { prefixdir = shareDir })
     after_install(function (target)
-        os.cp("libs/glaze/include/glaze/**.hpp", target:installdir() .. headerDir, {rootdir="libs/glaze/include"})
-
-        -- pkg-config file
+        -- pkg-config file.
         local file = io.open(target:installdir() .. pcFile, 'w')
         if not file then return end
         local requires = table.concat(target:get("packages"), ", ")
