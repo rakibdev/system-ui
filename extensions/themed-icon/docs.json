@@ -1,0 +1,9 @@
+
+{"icon", "", "Create themed icon."},
+{"", "{input}", ".svg, .png"},
+{"", "{output}", ".png"},
+{"", "--style", ""},
+{"", "  outlined", "Default."},
+{""},
+
+const std::string THEMED_ICONS = HOME + "/.cache/system-ui/icons";

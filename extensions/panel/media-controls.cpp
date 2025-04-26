@@ -117,55 +117,55 @@ void Player::update() {
 std::unique_ptr<EventBox> Player::create() {
   auto _title = std::make_unique<Label>();
   title = _title.get();
-  gtk_widget_set_halign(title->widget, GTK_ALIGN_START);
+  gtk_widget_set_halign(title->widget, GTK_ALIGN_START); // Keep direct GTK call
 
-  auto _artist = std::make_unique<Label>();
+  auto _artist = std::make_unique<Label>()
+                     ->addClass("artist");
   artist = _artist.get();
-  artist->addClass("artist");
-  gtk_widget_set_halign(artist->widget, GTK_ALIGN_START);
+  gtk_widget_set_halign(artist->widget, GTK_ALIGN_START); // Keep direct GTK call
 
-  auto details = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  gtk_widget_set_hexpand(details->widget, true);
-  gtk_widget_set_valign(details->widget, GTK_ALIGN_CENTER);
-  details->add(std::move(_title));
-  details->add(std::move(_artist));
+  auto details = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL)
+                     ->add(std::move(_title))
+                     ->add(std::move(_artist));
+  gtk_widget_set_hexpand(details->widget, true); // Keep direct GTK call
+  gtk_widget_set_valign(details->widget, GTK_ALIGN_CENTER); // Keep direct GTK call
 
-  auto _thumbnail = std::make_unique<Button>(Button::Type::Icon, Button::None);
+  auto _thumbnail = std::make_unique<Button>(Button::Type::Icon, Button::None)
+                        ->addClass("thumbnail")
+                        ->onClick([this]() { controller->playPause(); });
   thumbnail = _thumbnail.get();
-  thumbnail->addClass("thumbnail");
-  thumbnail->onClick([this]() { controller->playPause(); });
 
-  auto header = std::make_unique<Box>();
-  header->add(std::move(details));
-  header->add(std::move(_thumbnail));
+  auto header = std::make_unique<Box>()
+                    ->add(std::move(details))
+                    ->add(std::move(_thumbnail));
 
-  auto _slider = std::make_unique<Slider>();
+  auto _slider = std::make_unique<Slider>()
+                     ->onPointerDown([this](GdkEventButton *) { dragging = true; })
+                     ->onPointerUp([this](GdkEventButton *) { dragging = false; })
+                     ->onScroll([this](ScrollDirection direction) {
+                       dragging = true;
+                       onDragEnd->call();
+                     })
+                     ->onChange([this]() {
+                       if (dragging) controller->progress(slider->value());
+                     });
   slider = _slider.get();
-  gtk_range_set_increments((GtkRange *)slider->widget, 1, 5);
-  slider->onPointerDown([this](GdkEventButton *) { dragging = true; });
-  slider->onPointerUp([this](GdkEventButton *) { dragging = false; });
-  slider->onScroll([this](ScrollDirection direction) {
-    dragging = true;
-    onDragEnd->call();
-  });
-  slider->onChange([this]() {
-    if (dragging) controller->progress(slider->value());
-  });
+  gtk_range_set_increments((GtkRange *)slider->widget, 1, 5); // Keep direct GTK call
 
-  auto _element = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  auto _element = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL)
+                      ->addClass("player")
+                      ->add(std::move(header))
+                      ->add(std::move(_slider));
   element = _element.get();
-  element->addClass("player");
-  element->add(std::move(header));
-  element->add(std::move(_slider));
 
-  auto eventBox = std::make_unique<EventBox>();
-  eventBox->onScroll([this](ScrollDirection direction) {
-    if (direction == ScrollDirection::Up)
-      controller->next();
-    else
-      controller->previous();
-  });
-  eventBox->add(std::move(_element));
+  auto eventBox = std::make_unique<EventBox>()
+                      ->onScroll([this](ScrollDirection direction) {
+                        if (direction == ScrollDirection::Up)
+                          controller->next();
+                        else
+                          controller->previous();
+                      })
+                      ->add(std::move(_element));
 
   controller->onChange([this]() { update(); });
   update();
@@ -197,7 +197,7 @@ void MediaControls::deactivate() {
 }
 
 std::unique_ptr<Box> MediaControls::create() {
-  auto box = std::make_unique<Box>();
+  auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL); // Assume vertical based on usage
   element = box.get();
   return box;
 }

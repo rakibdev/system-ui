@@ -1,0 +1,33 @@
+{"theme", "", "Generate & apply theme."},
+{"", "{color}", "6-digit hex e.g. 67abe8."},
+{"", "--mode", ""},
+{"", "  dark", "Default."},
+{"", "  light", ""},
+{""},
+
+
+
+if (args[0] == "theme") {
+  if (args.size() < 2)
+    return sendResponse("error", "Invalid amount of arguments.");
+
+  if (!validateHex(args[1]))
+    // Double quotes causes JSON parse error, so use single.
+    return sendResponse("error", "Invalid color '" + args[1] + "'.");
+
+  auto it = std::find(args.begin(), args.end(), "--mode");
+  if (it != args.end() && std::next(it) != args.end()) {
+    AppData& data = appData.get();
+    std::string value = *std::next(it);
+    if (value == "light")
+      data.darkMode = false;
+    else if (value == "dark")
+      data.darkMode = true;
+    else
+      return sendResponse("error", "Unknown mode '" + value + "'.");
+    appData.save();
+  }
+
+  Theme::apply(args[1].empty() ? Theme::defaultColor : args[1]);
+  return sendResponse("info", "");
+}

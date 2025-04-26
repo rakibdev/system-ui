@@ -1,0 +1,75 @@
+@define-color window_background mix(#000, @primary_surface, 0.6);
+
+window {
+  background-color: transparent;
+}
+
+.body-small {
+  font-size: 14px;
+  color: @neutral_40;
+}
+
+.icon.image {
+  background-size: 24px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.icon label {
+  font: 18px Material Symbols Outlined;
+}
+
+.start-icon {
+  margin-right: 8px;
+}
+
+.end-icon {
+  margin-left: 8px;
+}
+
+button.filled {
+  background-color: @primary_40;
+  color: @primary_surface;
+}
+
+button.circle {
+  padding: 0;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+button.circle.small {
+  min-width: 32px;
+  min-height: 32px;
+}
+
+/* .dialog {
+  min-width: 336px;
+  padding: 16px 0;
+  border-radius: 24px;
+  background-color: @primary_surface_2;
+} */
+
+.dialog-container.fullscreen .dialog {
+  /* min-width: 100%;
+  min-height: 100%; */
+  border-radius: 0;
+}
+
+.dialog-container:not(.fullscreen) {
+  padding: 16px;
+}
+
+.dialog > .body {
+  /* flex: 1; */
+  padding: 0 24px;
+  background-color: @primary_surface_2;
+}
+
+.dialog > .actions {
+  padding: 16px 24px 0 24px;
+}
+
+.dialog > .actions button + button {
+  margin-left: 8px;
+}

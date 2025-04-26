@@ -1,0 +1,4 @@
+{
+  // clangd.
+  "editor.inlayHints.enabled": "off"
+}

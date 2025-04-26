@@ -234,8 +234,5 @@ class Transition {
   static gboolean update(gpointer data);
   Transition* to(Frame to, const std::function<void()> &onFinish);
   Transition(Element *element);
-  Transition* duration(int16_t value) {
-    this->duration = value;
-    return this;
-  }
+  Transition* duration(int16_t value);
 };

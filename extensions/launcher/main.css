@@ -1,0 +1,57 @@
+.launcher .body {
+  padding: 4px;
+  border-radius: 24px;
+  color: @neutral_20;
+  background-color: @window_background;
+}
+
+.launcher .search {
+  background-color: @primary_surface_2;
+  border-radius: 24px;
+  padding: 0 16px;
+  margin: 8px;
+}
+
+.launcher .search entry {
+  padding: 0;
+}
+
+.launcher .grid + .grid {
+  border-top: 1px solid @primary_surface_2;
+}
+
+.launcher .app {
+  padding: 16px;
+  border-radius: 24px;
+}
+
+.launcher .app:hover,
+.launcher .app:focus {
+  background-color: @primary_surface_2;
+}
+
+.launcher .app .icon {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background-size: 30px;
+  background-color: @primary_surface_3;
+}
+
+.launcher .app .name {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.app-menu menuitem.no-icon {
+  padding-left: 40px;
+}
+
+.launcher .placeholder {
+  padding: 24px;
+  color: @neutral_40;
+}
+
+.launcher .placeholder .icon label {
+  font-size: 40px;
+}

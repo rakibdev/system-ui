@@ -9,6 +9,7 @@ std::unique_ptr<NotificationManager> manager;
 std::unique_ptr<Box> create() {
   auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
   container = box.get();
+  // Add any initial configuration here if needed, e.g., ->addClass("notifications-container")
   return box;
 }
 void initialize() { manager = std::make_unique<NotificationManager>(); }

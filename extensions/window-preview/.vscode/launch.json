@@ -1,0 +1,12 @@
+{
+  "configurations": [
+    {
+      "name": "Debug",
+      "type": "lldb",
+      "request": "attach",
+      "program": "system-ui",
+      "preLaunchTask": "Run",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}
