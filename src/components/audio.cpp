@@ -1,7 +1,3 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #include "audio.h"
 
 #include <pipewire/extensions/metadata.h>
@@ -31,10 +27,10 @@ namespace Audio {
 Node *defaultSink;
 std::vector<std::unique_ptr<Node>> nodes;
 std::vector<std::unique_ptr<Device>> devices;
-std::unique_ptr<Debouncer> changeCallback;
+std::unique_ptr<Debounce> changeCallback;
 
 void onChange(const std::function<void()> &callback) {
-  changeCallback = std::make_unique<Debouncer>(100, callback);
+  changeCallback = std::make_unique<Debounce>(100, callback);
 }
 
 Device *getDeviceById(uint32_t id) {

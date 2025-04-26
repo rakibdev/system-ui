@@ -1,82 +1,67 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #include "element.h"
 
 #include <sstream>
 
-#include "utils.h"
-
 Element::~Element() {
-  childrens.clear();
-  if (cssProvider) {
-    gtk_style_context_remove_provider(gtk_widget_get_style_context(widget),
-                                      (GtkStyleProvider *)cssProvider);
-    g_object_unref(cssProvider);
-  }
+  children.clear();
   gtk_widget_destroy(widget);
 }
 
-void Element::add(std::unique_ptr<Element> &&element) {
+Element* Element::add(std::unique_ptr<Element> &&element) {
   gtk_container_add(GTK_CONTAINER(widget), element->widget);
   element->visible();
-  childrens.emplace_back(std::move(element));
+  children.emplace_back(std::move(element));
+  return this;
 }
 
-void Element::visible(bool value) { gtk_widget_set_visible(widget, value); }
+Element* Element::visible(bool value) { 
+  gtk_widget_set_visible(widget, value); 
+  return this;
+}
 
-void Element::addClass(const std::string &classNames) {
+Element* Element::addClass(const std::string &classNames) {
   GtkStyleContext *style = gtk_widget_get_style_context(widget);
   std::istringstream iss(classNames);
   std::string name;
   while (std::getline(iss, name, ' '))
     gtk_style_context_add_class(style, name.c_str());
+  return this;
 }
 
-void Element::removeClass(const std::string &className) {
+Element* Element::removeClass(const std::string &className) {
   gtk_style_context_remove_class(gtk_widget_get_style_context(widget),
                                  className.c_str());
+  return this;
 }
 
-void Element::style(const std::string &value) {
-  if (!cssProvider) {
-    cssProvider = gtk_css_provider_new();
-    gtk_style_context_add_provider(gtk_widget_get_style_context(widget),
-                                   (GtkStyleProvider *)cssProvider,
-                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-  }
-  GError *error = nullptr;
-  gtk_css_provider_load_from_data(cssProvider, value.c_str(), -1, &error);
-  if (error) {
-    Log::error("Element CSS \"" + value + "\": " + std::string(error->message));
-    g_error_free(error);
-  } else {
-    css = value;
-  }
-}
-
-void Element::size(int16_t width, int16_t height) {
+Element* Element::size(int16_t width, int16_t height) {
   gtk_widget_set_size_request(widget, width, height);
+  return this;
 }
 
-void Element::tooltip(const std::string &text) {
+Element* Element::tooltip(const std::string &text) {
   gtk_widget_set_tooltip_markup(widget, text.c_str());
+  return this;
 }
 
-void Element::focus() { gtk_widget_grab_focus(widget); }
+Element* Element::focus() { 
+  gtk_widget_grab_focus(widget); 
+  return this;
+}
 
-void Element::addState(GtkStateFlags flag) {
+Element* Element::addState(GtkStateFlags flag) {
   GtkStateFlags flags = gtk_widget_get_state_flags(widget);
   if (!(flags & flag)) gtk_widget_set_state_flags(widget, flag, false);
+  return this;
 }
 
-void Element::removeState(GtkStateFlags flag) {
+Element* Element::removeState(GtkStateFlags flag) {
   GtkStateFlags flags = gtk_widget_get_state_flags(widget);
   if (flags & flag) gtk_widget_unset_state_flags(widget, flag);
+  return this;
 }
 
-void PointerEvents::onPointerDown(const PointerCallback &callback) {
+PointerEvents* PointerEvents::onPointerDown(const PointerCallback &callback) {
   pointerDownCallback = callback;
   gtk_widget_add_events(widget, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(widget, "button-press-event",
@@ -87,9 +72,10 @@ void PointerEvents::onPointerDown(const PointerCallback &callback) {
                      return GDK_EVENT_PROPAGATE;
                    }),
                    this);
+  return this;
 }
 
-void PointerEvents::onPointerUp(const PointerCallback &callback) {
+PointerEvents* PointerEvents::onPointerUp(const PointerCallback &callback) {
   pointerUpCallback = callback;
   auto pressed = [](GtkWidget *, GdkEventButton *event,
                     gpointer data) -> gboolean {
@@ -99,9 +85,10 @@ void PointerEvents::onPointerUp(const PointerCallback &callback) {
   };
   gtk_widget_add_events(widget, GDK_BUTTON_RELEASE_MASK);
   g_signal_connect(widget, "button-release-event", G_CALLBACK(+pressed), this);
+  return this;
 }
 
-void ScrollEvents::onScroll(
+ScrollEvents* ScrollEvents::onScroll(
     const std::function<void(ScrollDirection)> &callback) {
   scrollCallback = callback;
   auto scroll = [](GtkWidget *, GdkEventScroll *event,
@@ -119,6 +106,7 @@ void ScrollEvents::onScroll(
   };
   gtk_widget_add_events(widget, GDK_SCROLL_MASK);
   g_signal_connect(widget, "scroll-event", G_CALLBACK(+scroll), this);
+  return this;
 }
 
 gboolean HoverEvents::onHoverChange(GtkWidget *, GdkEventCrossing *event,
@@ -131,21 +119,23 @@ gboolean HoverEvents::onHoverChange(GtkWidget *, GdkEventCrossing *event,
   return GDK_EVENT_PROPAGATE;
 }
 
-void HoverEvents::onHover(const HoverCallback &callback) {
+HoverEvents* HoverEvents::onHover(const HoverCallback &callback) {
   hoverCallback = callback;
   gtk_widget_add_events(widget, GDK_ENTER_NOTIFY_MASK);
   g_signal_connect(widget, "enter-notify-event", (GCallback)onHoverChange,
                    this);
+  return this;
 }
 
-void HoverEvents::onHoverOut(const HoverCallback &callback) {
+HoverEvents* HoverEvents::onHoverOut(const HoverCallback &callback) {
   hoverOutCallback = callback;
   gtk_widget_add_events(widget, GDK_LEAVE_NOTIFY_MASK);
   g_signal_connect(widget, "leave-notify-event", (GCallback)onHoverChange,
                    this);
+  return this;
 }
 
-void KeyboardEvents::onKeyDown(const Callback &callback) {
+KeyboardEvents* KeyboardEvents::onKeyDown(const Callback &callback) {
   keyDownCallback = callback;
   g_signal_connect(widget, "key-press-event",
                    G_CALLBACK(+[](GtkWidget *, GdkEventKey *event,
@@ -156,9 +146,10 @@ void KeyboardEvents::onKeyDown(const Callback &callback) {
                      return GDK_EVENT_PROPAGATE;
                    }),
                    this);
+  return this;
 }
 
-void VisibilityEvents::onHide(const std::function<void()> &callback) {
+VisibilityEvents* VisibilityEvents::onHide(const std::function<void()> &callback) {
   hideCallback = callback;
   auto hide = [](GtkWidget *widget, gpointer data) -> gboolean {
     VisibilityEvents *_this = static_cast<VisibilityEvents *>(data);
@@ -166,6 +157,7 @@ void VisibilityEvents::onHide(const std::function<void()> &callback) {
     return GDK_EVENT_PROPAGATE;
   };
   g_signal_connect(widget, "hide", G_CALLBACK(+hide), this);
+  return this;
 }
 
 Box::Box(GtkOrientation orientation) {
@@ -173,18 +165,21 @@ Box::Box(GtkOrientation orientation) {
   spaceEvenly(false);
 }
 
-void Box::gap(std::uint16_t value) {
+Box* Box::gap(std::uint16_t value) {
   gtk_box_set_spacing((GtkBox *)widget, value);
+  return this;
 }
 
-void Box::spaceEvenly(bool value) {
+Box* Box::spaceEvenly(bool value) {
   gtk_box_set_homogeneous((GtkBox *)widget, value);
+  return this;
 }
 
-void Box::prependChild(std::unique_ptr<Element> &&child) {
+Box* Box::prependChild(std::unique_ptr<Element> &&child) {
   gtk_box_pack_start((GtkBox *)widget, child->widget, true, true, 0);
   child->visible();
-  childrens.emplace_back(std::move(child));
+  children.emplace_back(std::move(child));
+  return this;
 }
 
 Label::Label(const std::string &value) {
@@ -192,25 +187,28 @@ Label::Label(const std::string &value) {
   gtk_label_set_ellipsize((GtkLabel *)widget, PANGO_ELLIPSIZE_END);
 }
 
-void Label::set(const std::string &value) {
+Label* Label::set(const std::string &value) {
   gtk_label_set_text((GtkLabel *)widget, value.c_str());
+  return this;
 }
 
 Icon::Icon() { addClass("icon"); }
 
-void Icon::set(const std::string &name) {
+Icon* Icon::set(const std::string &name) {
   if (!label) {
     auto _label = std::make_unique<Label>();
     label = _label.get();
     add(std::move(_label));
   }
   label->set(name);
+  return this;
 }
 
-void Icon::setImage(const std::string &path) {
+Icon* Icon::setImage(const std::string &path) {
   GtkStyleContext *context = gtk_widget_get_style_context(widget);
   if (!gtk_style_context_has_class(context, "image")) addClass("image");
-  style("* { background-image: url(\"" + path + "\"); }");
+  style.css("* { background-image: url(\"" + path + "\"); }");
+  return this;
 }
 
 Button::Button(Type type, Variant variant, Size size) {
@@ -223,7 +221,7 @@ Button::Button(Type type, Variant variant, Size size) {
   }
   if (size == Small) addClass("small");
 
-  // Don't stretch childrens.
+  // Don't stretch children.
   gtk_widget_set_valign(widget, GTK_ALIGN_CENTER);
 
   auto _container = std::make_unique<Box>();
@@ -255,18 +253,20 @@ Button::Button(Type type, Variant variant, Size size) {
   add(std::move(_container));
 }
 
-void Button::setContent(std::unique_ptr<Element> &&element) {
-  content->childrens.clear();
+Button* Button::setContent(std::unique_ptr<Element> &&element) {
+  content->children.clear();
   content->add(std::move(element));
+  return this;
 }
 
-void Button::setContent(const std::string &value) {
+Button* Button::setContent(const std::string &value) {
   auto label = std::make_unique<Label>(value);
   gtk_widget_set_halign(label->widget, GTK_ALIGN_START);
   setContent(std::move(label));
+  return this;
 }
 
-void Button::onClick(const std::function<void()> &callback) {
+Button* Button::onClick(const std::function<void()> &callback) {
   clickCallback = callback;
   auto clicked = [](GtkButton *button, gpointer data) -> gboolean {
     Button *_this = static_cast<Button *>(data);
@@ -274,11 +274,15 @@ void Button::onClick(const std::function<void()> &callback) {
     return GDK_EVENT_STOP;
   };
   g_signal_connect(widget, "clicked", G_CALLBACK(+clicked), this);
+  return this;
 }
 
 bool Button::disabled() { return !gtk_widget_get_sensitive(widget); }
 
-void Button::disabled(bool value) { gtk_widget_set_sensitive(widget, !value); }
+Button* Button::disabled(bool value) { 
+  gtk_widget_set_sensitive(widget, !value); 
+  return this;
+}
 
 ScrolledWindow::ScrolledWindow() {
   widget = gtk_scrolled_window_new(nullptr, nullptr);
@@ -294,15 +298,17 @@ Input::Input() {
 
 std::string Input::value() { return gtk_entry_get_text((GtkEntry *)widget); }
 
-void Input::value(const std::string &value) {
+Input* Input::value(const std::string &value) {
   gtk_entry_set_text((GtkEntry *)widget, value.c_str());
+  return this;
 }
 
-void Input::placeholder(const std::string &value) {
+Input* Input::placeholder(const std::string &value) {
   gtk_entry_set_placeholder_text((GtkEntry *)widget, value.c_str());
+  return this;
 }
 
-void Input::onChange(const std::function<void()> &callback) {
+Input* Input::onChange(const std::function<void()> &callback) {
   changeCallback = callback;
   g_signal_connect(widget, "changed",
                    G_CALLBACK(+[](GtkWidget *, gpointer data) {
@@ -310,9 +316,10 @@ void Input::onChange(const std::function<void()> &callback) {
                      _this->changeCallback();
                    }),
                    this);
+  return this;
 }
 
-void Input::onSubmit(const std::function<void()> &callback) {
+Input* Input::onSubmit(const std::function<void()> &callback) {
   submitCallback = callback;
   g_signal_connect(widget, "activate",
                    G_CALLBACK(+[](GtkWidget *, gpointer data) {
@@ -320,6 +327,7 @@ void Input::onSubmit(const std::function<void()> &callback) {
                      _this->submitCallback();
                    }),
                    this);
+  return this;
 }
 
 Slider::Slider() {
@@ -330,11 +338,12 @@ Slider::Slider() {
 
 uint8_t Slider::value() { return gtk_range_get_value(GTK_RANGE(widget)); }
 
-void Slider::value(uint8_t value) {
+Slider* Slider::value(uint8_t value) {
   gtk_range_set_value(GTK_RANGE(widget), value);
+  return this;
 }
 
-void Slider::onChange(const std::function<void()> &callback) {
+Slider* Slider::onChange(const std::function<void()> &callback) {
   changeCallback = callback;
   auto changed = [](GtkRange *range, gpointer data) {
     Slider *_this = static_cast<Slider *>(data);
@@ -342,6 +351,7 @@ void Slider::onChange(const std::function<void()> &callback) {
     return GDK_EVENT_PROPAGATE;
   };
   g_signal_connect(widget, "value-changed", G_CALLBACK(+changed), this);
+  return this;
 }
 
 FlowBoxChild::FlowBoxChild() { widget = gtk_flow_box_child_new(); }
@@ -351,21 +361,24 @@ FlowBox::FlowBox() {
   spaceEvenly(true);
 }
 
-void FlowBox::gap(std::uint16_t value) {
+FlowBox* FlowBox::gap(std::uint16_t value) {
   gtk_flow_box_set_column_spacing((GtkFlowBox *)widget, value);
   gtk_flow_box_set_row_spacing((GtkFlowBox *)widget, value);
+  return this;
 }
 
-void FlowBox::spaceEvenly(bool value) {
+FlowBox* FlowBox::spaceEvenly(bool value) {
   gtk_flow_box_set_homogeneous((GtkFlowBox *)widget, value);
+  return this;
 }
 
-void FlowBox::columns(std::uint8_t value) {
+FlowBox* FlowBox::columns(std::uint8_t value) {
   gtk_flow_box_set_min_children_per_line((GtkFlowBox *)widget, value);
   gtk_flow_box_set_max_children_per_line((GtkFlowBox *)widget, value);
+  return this;
 }
 
-void FlowBox::onChildClick(const ChildCallback &callback) {
+FlowBox* FlowBox::onChildClick(const ChildCallback &callback) {
   childClickCallback = callback;
   g_signal_connect(widget, "child-activated",
                    G_CALLBACK(+[](GtkFlowBox *, GtkFlowBoxChild *childWidget,
@@ -374,6 +387,7 @@ void FlowBox::onChildClick(const ChildCallback &callback) {
                      _this->childClickCallback(childWidget);
                    }),
                    this);
+  return this;
 }
 
 FlowBoxChild *FlowBox::add(std::unique_ptr<Element> &&element) {
@@ -400,11 +414,12 @@ GtkLayerShellEdge gtkLayerEnumFromAlign(Align value) {
   return GTK_LAYER_SHELL_EDGE_LEFT;
 }
 
-void Window::align(Align horizontal, Align vertical) {
+Window* Window::align(Align horizontal, Align vertical) {
   gtk_layer_set_anchor((GtkWindow *)widget, gtkLayerEnumFromAlign(horizontal),
                        true);
   gtk_layer_set_anchor((GtkWindow *)widget, gtkLayerEnumFromAlign(vertical),
                        true);
+  return this;
 }
 
 std::tuple<Align, Align> Window::align() {
@@ -453,7 +468,7 @@ Dialog::Dialog(Element *parent, Window *window)
   align(vertical, horizontal);
 }
 
-void Dialog::visible(bool value) {
+Dialog* Dialog::visible(bool value) {
   if (value) {
     int width = gtk_widget_get_allocated_width(parent->widget);
     int height = gtk_widget_get_allocated_height(parent->widget);
@@ -461,6 +476,7 @@ void Dialog::visible(bool value) {
     gtk_window_present((GtkWindow *)widget);
   } else {
   }
+  return this;
 }
 
 MenuItem::MenuItem(const std::string &label, const std::string &icon) {
@@ -480,26 +496,29 @@ MenuItem::MenuItem(const std::string &label, const std::string &icon) {
   add(std::move(box));
 }
 
-void MenuItem::onClick(const std::function<void()> &callback) {
+MenuItem* MenuItem::onClick(const std::function<void()> &callback) {
   clickCallback = callback;
   g_signal_connect_swapped(widget, "activate", G_CALLBACK(+[](MenuItem *_this) {
                              if (_this->clickCallback) _this->clickCallback();
                            }),
                            this);
+  return this;
 }
 
 MenuSeparator::MenuSeparator() { widget = gtk_separator_menu_item_new(); }
 
 Menu::Menu() { widget = gtk_menu_new(); }
 
-void Menu::add(std::unique_ptr<Element> &&child) {
+Menu* Menu::add(std::unique_ptr<Element> &&child) {
   gtk_menu_shell_append((GtkMenuShell *)widget, child->widget);
   child->visible();
-  childrens.emplace_back(std::move(child));
+  children.emplace_back(std::move(child));
+  return this;
 }
 
-void Menu::visible(bool value) {
+Menu* Menu::visible(bool value) {
   if (value) gtk_menu_popup_at_pointer((GtkMenu *)widget, nullptr);
+  return this;
 }
 
 gboolean Transition::update(gpointer data) {
@@ -511,27 +530,28 @@ gboolean Transition::update(gpointer data) {
     _this->element->size(_this->current.width, _this->current.height);
     return G_SOURCE_CONTINUE;
   } else {
-    for (const auto &child : _this->element->childrens) child->visible();
+    for (const auto &child : _this->element->children) child->visible();
     _this->element->size(-1, -1);  // revert dynamic sizing
     _this->finishCallback();
     return G_SOURCE_REMOVE;
   }
 }
 
-void Transition::to(Frame to, const std::function<void()> &onFinish) {
+Transition* Transition::to(Frame to, const std::function<void()> &onFinish) {
   if (currentSteps > 0) {
     g_source_remove(timeout);
   } else {
     current.width = gtk_widget_get_allocated_width(element->widget);
     current.height = gtk_widget_get_allocated_height(element->widget);
     // children prevents parent size change. so hide while transitioning.
-    for (const auto &child : element->childrens) child->visible(false);
+    for (const auto &child : element->children) child->visible(false);
   }
   finishCallback = onFinish;
   currentSteps = duration / timeoutMs;
   stepWidth = (to.width - current.width) / currentSteps;
   stepHeight = (to.height - current.height) / currentSteps;
   timeout = g_timeout_add(timeoutMs, update, this);
+  return this;
 }
 
 Transition::Transition(Element *element) : element(element) {}

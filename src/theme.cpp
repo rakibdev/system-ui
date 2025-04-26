@@ -1,13 +1,13 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #include "theme.h"
 
 #include <filesystem>
 
+#include "../libs/material-color-utilities/cpp/cam/hct.h"
+#include "../libs/material-color-utilities/cpp/quantize/celebi.h"
+#include "../libs/material-color-utilities/cpp/score/score.h"
 #include "daemon.h"
 #include "extension.h"
+#include "utils/file.h"
 
 using material_color_utilities::Hct;
 
@@ -54,42 +54,40 @@ Rgb rgbFromHex(const std::string &hex) {
 }
 
 namespace Theme {
-GtkCssProvider *cssProvider = nullptr;
 std::string defaultColor = "#00639b";
 
-constexpr int lightThemeMaxLightness = 98;
-constexpr int darkThemeExtraLightness = 8;
+int maxLightness = 99;
 int inverseTone(int tone) {
-  return std::min((100 - tone) + darkThemeExtraLightness,
-                  lightThemeMaxLightness);
+  int extraLightness = 8;
+  return std::min((100 - tone) + extraLightness, maxLightness);
 }
 
 AppData::Theme fromColor(const std::string &hex) {
   AppData::Theme palette = {{"primary", hex}};
+
   Hct primary(argbFromHex(hex));
-  palette["neutral"] = hexFromHct(primary.get_hue(), 10, primary.get_tone());
+  palette["neutral"] = hexFromHct(primary.get_hue(), 8, primary.get_tone());
 
   AppData::Theme theme;
-  bool lightMode = appData.get().lightMode;
+  bool darkMode = appData.get().darkMode;
   for (const auto &[key, value] : palette) {
     Hct hct(argbFromHex(value));
 
     for (int tone : {80, 40, 20}) {
       std::string color = hexFromHct(hct.get_hue(), hct.get_chroma(),
-                                     lightMode ? tone : inverseTone(tone));
+                                     darkMode ? inverseTone(tone) : tone);
       theme[key + "_" + std::to_string(tone)] = color;
     }
 
     if (key != "neutral") {
       theme[key + "_surface"] =
-          hexFromHct(hct.get_hue(), 10,
-                     lightMode ? lightThemeMaxLightness : inverseTone(100));
+          hexFromHct(hct.get_hue(), 8, darkMode ? 8 : maxLightness);
       theme[key + "_surface_2"] =
-          hexFromHct(hct.get_hue(), 15, lightMode ? 95 : inverseTone(95));
+          hexFromHct(hct.get_hue(), 14, darkMode ? inverseTone(94) : 94);
       theme[key + "_surface_3"] =
-          hexFromHct(hct.get_hue(), 20, lightMode ? 90 : inverseTone(90));
+          hexFromHct(hct.get_hue(), 18, darkMode ? inverseTone(88) : 88);
       theme[key + "_surface_4"] =
-          hexFromHct(hct.get_hue(), 20, lightMode ? 85 : inverseTone(85));
+          hexFromHct(hct.get_hue(), 20, darkMode ? inverseTone(84) : 84);
     }
   }
   return theme;
@@ -166,61 +164,58 @@ std::tuple<std::filesystem::path, AppData::Theme> createIcon(
   unsigned char *pixels = cairo_image_surface_get_data(surface);
   int stride = cairo_image_surface_get_stride(surface);
   constexpr uint8_t channels = 4;
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      unsigned char *pixel = pixels + y * stride + x * channels;
-      int a = pixel[3];
-      int r = pixel[2];
-      int g = pixel[1];
-      int b = pixel[0];
+  // for (int y = 0; y < height; y++) {
+  //   for (int x = 0; x < width; x++) {
+  //     unsigned char *pixel = pixels + y * stride + x * channels;
+  //     int a = pixel[3];
+  //     int r = pixel[2];
+  //     int g = pixel[1];
+  //     int b = pixel[0];
 
-      float lightness = 0.21 * r + 0.72 * g + 0.07 * b;
-      if (lightness > 220) {
-        // todo: Fix for white symbolic icons like media-rxecord.
-        // Turn white pixels transparent.
-        a = 0;
-      } else if (a > 0) {
-        a = 255 - lightness;
-        constexpr float intensity = 2;
-        a = std::min(255.0f, a * intensity);
-      }
+  //     // float lightness = 0.21 * r + 0.72 * g + 0.07 * b;
+  //     // if (lightness > 220) {
+  //     // todo: Fix for white symbolic icons like media-rxecord.
+  //     // Turn white pixels transparent.
+  //     // a = 0;
+  //     // } else if (a > 0) {
+  //     // a = 255 - lightness;
+  //     // constexpr float intensity = 2;
+  //     // a = std::min(255.0f, a * intensity);
+  //     // }
 
-      pixel[0] = color.b;
-      pixel[1] = color.g;
-      pixel[2] = color.r;
-      pixel[3] = a;
+  //     // pixel[0] = color.b;
+  //     // pixel[1] = color.g;
+  //     // pixel[2] = color.r;
+  //     // pixel[3] = a;
 
-      // bool edge_detected = false;
-      // constexpr int outline_width = 2;
-      // constexpr int threshold = 128;
+  //     bool edgeDetected = false;
+  //     constexpr int outline_width = 2;
+  //     constexpr int threshold = 64;
+  //     for (int i = -outline_width; i <= outline_width && !edgeDetected; ++i) {
+  //       for (int j = -outline_width; j <= outline_width && !edgeDetected; ++j) {
+  //         if (i != 0 || j != 0) {  // Skip the current pixel
+  //           unsigned char *neighbour =
+  //               pixels + (y + i) * stride + (x + j) * channels;
+  //           float current_luminance = luminance(pixel);
+  //           float neighbour_luminance = luminance(neighbour);
 
-      // // Check surrounding pixels for edge detection
-      // for (int i = -outline_width; i <= outline_width && !edge_detected; ++i) {
-      //   for (int j = -outline_width; j <= outline_width && !edge_detected;
-      //        ++j) {
-      //     if (i != 0 || j != 0) {  // Skip the current pixel
-      //       unsigned char *neighbour =
-      //           pixels + (y + i) * stride + (x + j) * channels;
-      //       float current_luminance = luminance(pixel);
-      //       float neighbour_luminance = luminance(neighbour);
+  //           if (std::abs(current_luminance - neighbour_luminance) > threshold) {
+  //             edgeDetected = true;
+  //           }
+  //         }
+  //       }
+  //     }
 
-      //       if (std::abs(current_luminance - neighbour_luminance) > threshold) {
-      //         edge_detected = true;
-      //       }
-      //     }
-      //   }
-      // }
-
-      // if (edge_detected) {
-      //   cairo_rectangle(cr, x - outline_width, y - outline_width,
-      //                   2 * outline_width + 1, 2 * outline_width + 1);
-      //   cairo_fill(cr);
-      // }
-    }
-  }
+  //     if (edgeDetected) {
+  //       cairo_rectangle(cr, x - outline_width, y - outline_width,
+  //                       2 * outline_width + 1, 2 * outline_width + 1);
+  //       cairo_fill(cr);
+  //     }
+  //   }
+  // }
 
   std::string file = THEMED_ICONS + "/" + name + ".png";
-  prepareDirectory(file);
+  prepareDir(file);
   cairo_surface_write_to_png(surface, file.c_str());
   cairo_surface_destroy(surface);
   cairo_destroy(cr);
@@ -242,45 +237,10 @@ void apply(const std::string &color) {
   for (const auto &[key, value] : data.theme)
     colorsCss += "@define-color " + key + " " + value + ";\n";
 
-  if (data.lightMode)
-    colorsCss += "@define-color primary_surface_0 @primary_80;\n";
-  else
+  if (data.darkMode)
     colorsCss +=
         "@define-color primary_surface_0 mix(#000, @primary_80, 0.1);\n";
-
-  std::stringstream defaultCss;
-  {
-    std::ifstream file(DEFAULT_CSS);
-    if (file.is_open()) defaultCss << file.rdbuf();
-  }
-  std::stringstream userCss;
-  {
-    std::ifstream file(USER_CSS);
-    if (file.is_open()) userCss << file.rdbuf();
-  }
-
-  if (cssProvider)
-    gtk_style_context_remove_provider_for_screen(
-        gdk_screen_get_default(), (GtkStyleProvider *)cssProvider);
   else
-    cssProvider = gtk_css_provider_new();
-  GError *error = nullptr;
-  gtk_css_provider_load_from_data(
-      cssProvider, (colorsCss + defaultCss.str() + userCss.str()).c_str(), -1,
-      &error);
-  if (error) {
-    Log::error("Invalid CSS: " + std::string(error->message));
-    g_error_free(error);
-    destroy();
-    return;
-  }
-  gtk_style_context_add_provider_for_screen(
-      gdk_screen_get_default(), (GtkStyleProvider *)cssProvider,
-      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-}
-
-void destroy() {
-  g_object_unref(cssProvider);
-  cssProvider = nullptr;
+    colorsCss += "@define-color primary_surface_0 @primary_80;\n";
 }
 }

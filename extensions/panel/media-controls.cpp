@@ -1,14 +1,10 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #include "media-controls.h"
 
 #include "../../src/theme.h"
 
 Player::Player(std::unique_ptr<PlayerController> &&_controller)
     : controller(std::move(_controller)) {
-  onDragEnd = std::make_unique<Debouncer>(400, [this]() { dragging = false; });
+  onDragEnd = std::make_unique<Debounce>(400, [this]() { dragging = false; });
 }
 
 Player::~Player() {
@@ -99,14 +95,14 @@ void Player::update() {
       return;
 
     element->visible();
-    // Only clear content childrens, not thumbnail->childrens.clear().
-    thumbnail->content->childrens.clear();
-    title->set(controller->title);
+    // Only clear content children, not thumbnail->children.clear().
+    thumbnail->content->children.clear();
+    title->value(controller->title);
     if (controller->artist.empty())
       artist->visible(false);
     else {
       artist->visible(true);
-      artist->set(controller->artist);
+      artist->value(controller->artist);
     }
     updateTheme();
 
@@ -180,7 +176,7 @@ std::unique_ptr<EventBox> Player::create() {
 
 void MediaControls::update() {
   players.clear();
-  element->childrens.clear();
+  element->children.clear();
   auto controllers = controller->getPlayers();
   for (auto &controller : controllers) {
     auto player = std::make_unique<Player>(std::move(controller));

@@ -1,10 +1,10 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #include "patch.h"
 
-#include "../utils.h"
+#include <fstream>
+#include <map>
+
+#include "../config.h"
+#include "../utils/log.h"
 
 void patchLine(std::string& target, const std::string& source,
                const std::map<std::string, std::string>& variables,

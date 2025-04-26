@@ -1,12 +1,8 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #pragma once
 
 #include "../../src/components/media.h"
 #include "../../src/element.h"
-#include "../../src/utils.h"
+#include "../../src/utils/debounce.h"
 
 class Player {
   std::unique_ptr<PlayerController> controller;
@@ -24,7 +20,7 @@ class Player {
   std::string lastArtUrl;
 
   bool dragging = false;
-  std::unique_ptr<Debouncer> onDragEnd;
+  std::unique_ptr<Debounce> onDragEnd;
 
   void updateTheme();
   void update();

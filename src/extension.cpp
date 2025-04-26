@@ -1,24 +1,10 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #include "extension.h"
 
 #include <dlfcn.h>
 
-#include "utils.h"
+#include "utils/log.h"
 
-void Extension::activate() {
-  active = true;
-  onActivate();
-}
-
-void Extension::deactivate() {
-  active = false;
-  onDeactivate();
-}
-
-std::string ExtensionManager::getName(std::string filename) {
+std::string ExtensionManager::toId(std::string filename) {
   size_t start = filename.find("lib");
   if (start == 0) filename.erase(start, 3);
   size_t end = filename.rfind(".so");
@@ -26,35 +12,17 @@ std::string ExtensionManager::getName(std::string filename) {
   return filename;
 }
 
-bool isDynamic(const std::unique_ptr<Extension>& extension) {
-  return !extension->filename.empty();
-}
-
-bool ExtensionManager::needsReload(
-    const std::unique_ptr<Extension>& extension) {
-  std::string file = EXTENSIONS_DIR + "/" + extension->filename;
-  if (isDynamic(extension) && std::filesystem::exists(file)) {
-    auto time = std::filesystem::last_write_time(file);
-    if (extension->fileModifiedTime != time) {
-      extension->fileModifiedTime = time;
-      return true;
-    }
-  }
-  return false;
-}
-
-void ExtensionManager::add(const std::string& name,
+void ExtensionManager::add(const std::string& id,
                            std::unique_ptr<Extension>&& extension) {
-  extensions[name] = std::move(extension);
-  extensions[name]->activate();
+  extensions[id] = std::move(extension);
 }
 
-std::filesystem::path findFile(const std::string& name) {
+std::filesystem::path findFile(const std::string& id) {
   std::filesystem::path file;
   if (std::filesystem::exists(EXTENSIONS_DIR)) {
     for (auto& it : std::filesystem::directory_iterator(EXTENSIONS_DIR)) {
       if (it.is_regular_file() &&
-          ExtensionManager::getName(it.path().stem()) == name) {
+          ExtensionManager::getId(it.path().stem()) == id) {
         file = it.path();
         break;
       }
@@ -63,45 +31,39 @@ std::filesystem::path findFile(const std::string& name) {
   return file;
 }
 
-void ExtensionManager::load(const std::string& name, std::string& error) {
-  std::filesystem::path file = findFile(name);
+void ExtensionManager::load(const std::string& id, std::string& error) {
+  std::filesystem::path file = findFile(id);
   if (file.empty()) {
-    error = name + " not found in " + EXTENSIONS_DIR;
+    error = id + " not found in " + EXTENSIONS_DIR;
     return;
   }
 
   auto handle = dlopen(file.c_str(), RTLD_NOW);
   if (!handle) {
-    error = "dlopen " + name + " failed. " + dlerror();
+    error = "dlopen " + id + " failed. " + dlerror();
     return;
   }
   using CreateExtension = std::unique_ptr<Extension> (*)();
   auto createExtension = (CreateExtension)dlsym(handle, "createExtension");
   if (!createExtension) {
     dlclose(handle);
-    error = "dlsym " + name + " failed. " + dlerror();
+    error = "dlsym " + id + " failed. " + dlerror();
     return;
   }
 
-  add(name, createExtension());
-  auto& extension = extensions[name];
+  add(id, createExtension());
+  auto& extension = extensions[id];
   extension->handle = handle;
   extension->filename = file.filename();
-  extension->fileModifiedTime = std::filesystem::last_write_time(file);
 }
 
-void ExtensionManager::unload(const std::string& name) {
-  bool dynamic = isDynamic(extensions[name]);
-  void* handle = extensions[name]->handle;
+void ExtensionManager::unload(const std::string& id) {
+  void* handle = extensions[id]->handle;
 
   // Don't dlclose before destructing extension.
-  extensions[name]->deactivate();
-  extensions.erase(name);
-
-  if (dynamic) {
-    if (dlclose(handle) != 0)
-      Log::info("dlclose " + name + " failed. " + dlerror());
-  }
+  extensions.erase(id);
+  if (dlclose(handle) != 0)
+    Log::info("dlclose " + id + " failed. " + dlerror());
 }
 
 ExtensionManager::~ExtensionManager() {

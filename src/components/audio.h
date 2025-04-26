@@ -1,16 +1,10 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #pragma once
 
 #include <pipewire/pipewire.h>
 
-#include <iostream>
+#include <functional>
 #include <memory>
 #include <vector>
-
-#include "../utils.h"
 
 namespace Audio {
 // audio/sink

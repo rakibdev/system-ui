@@ -1,4 +1,4 @@
-set_languages("c++2b")
+set_languages("c++latest")
 set_defaultmode("debug")
 add_rules("mode.debug", "mode.release")
 if is_mode("debug") then add_defines("DEV") end
@@ -21,7 +21,7 @@ target("material-color-utilities")
     remove_files(materialColorUtilitiesDir .. "/cpp/**_test.cc" )
     add_includedirs(materialColorUtilitiesDir, {public = true})
     
-    -- Fixes linking relocation error for shared "system-ui" target.
+    -- Fixes linking relocation for shared "system-ui" target.
     add_cxxflags("-fPIC")
 
     before_build(function (target)
@@ -31,27 +31,12 @@ target("material-color-utilities")
         end
     end)
 
-target("system-ui")
-    set_kind("shared")
-    add_files("src/**.cpp")
-    add_files("extensions/**.cpp")
-
-    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze")
-    add_deps("material-color-utilities")
-    
-    -- Fixes linking relocation error for .so extensions.
-    add_cxxflags("-fPIC")
-
-    add_installfiles("src/*.h", { prefixdir = headerDir })
-    add_installfiles("src/components/*.h", {prefixdir = headerDir .. "/components"})
-    add_installfiles("assets/shaders/*.frag", { prefixdir = shareDir .. "/shaders" })
-    add_installfiles("assets/system-ui.css", { prefixdir = shareDir })
-    after_install(function (target)
-        -- pkg-config file.
-        local file = io.open(target:installdir() .. pcFile, 'w')
-        if not file then return end
-        local requires = table.concat(target:get("packages"), ", ")
-        local content = string.format([[
+function createPkgConfig(target)
+    -- pkg-config file.
+    local file = io.open(target:installdir() .. pcFile, 'w')
+    if not file then return end
+    local requires = table.concat(target:get("packages"), ", ")
+    local content = string.format([[
 prefix=%s
 libdir=${prefix}/lib
 includedir=${prefix}/include
@@ -62,16 +47,36 @@ Version: 0.0.1
 Requires: %s
 Libs: -L${libdir} -lsystem-ui
 Cflags: -I${includedir}/system-ui]], target:installdir(), requires)
-        file:write(content)
-        file:close()
+    file:write(content)
+    file:close()
+end
+
+function removePkgConfig(target)
+    os.rm(target:installdir() .. "/" .. headerDir)
+    os.rm(target:installdir() .. pcFile)
+
+target("system-ui")
+    set_kind("shared")
+    add_files("src/**.cpp")
+
+    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze")
+    add_deps("material-color-utilities")
+    
+    -- Fixes linking relocation for .so extensions.
+    add_cxxflags("-fPIC")
+
+    add_installfiles("src/*.h", { prefixdir = headerDir })
+    add_installfiles("src/components/*.h", {prefixdir = headerDir .. "/components"})
+    add_installfiles("src/default.css", { prefixdir = shareDir })
+    add_installfiles("extensions", { prefixdir = shareDir .. "/extensions" })
+    after_install(function (target)
+        createPkgConfig(target)
     end)
     after_uninstall(function (target)
-        os.rm(target:installdir() .. "/" .. headerDir)
-        os.rm(target:installdir() .. pcFile)
+        removePkgConfig(target)
     end)
 
 target("app")
     set_basename("system-ui")
     add_deps("system-ui")
-    -- LD_LIBRARY_PATH
     add_rpathdirs("@loader_path")

@@ -1,6 +1,6 @@
 ![](demo/system-wide-theming.png)
 
-You see a black dot at top right corner? Hovering it smoothly reveals the panel. For a seamless fullscreen experience. No more taskbar distractions!
+Notice a black dot at top right corner? Hovering it smoothly reveals the panel. For a seamless fullscreen experience. No more taskbar distractions.
 
 ### Panel
 
@@ -44,11 +44,11 @@ xmake uninstall --admin
 
 ## Extensions
 
-Generally extensions can be seen as GTK windows with access to System UI framework APIs. Built-in launcher, panel are also extensions.
+Generally extensions can be seen as GTK windows with access to System UI framework APIs.
 
 ### Develop
 
-For guidance on creating and debugging extensions, refer to a demo extension [window-preview.](link)
+For guidance on creating and debugging extensions, refer to a [system-ui-extensions](link) repo.
 
 ### Usage
 

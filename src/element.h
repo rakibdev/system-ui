@@ -1,7 +1,3 @@
-// Copyright © 2024 Rakib <rakib13332@gmail.com>
-// Repo: https://github.com/rakibdev/system-ui
-// SPDX-License-Identifier: MPL-2.0
-
 #pragma once
 
 #include <gtk-layer-shell.h>
@@ -11,35 +7,34 @@
 #include <functional>
 #include <memory>
 
+#include "style.h"
+
 enum class Align { Top, Bottom, Start, End, Center };
 enum class ScrollDirection { Up, Down };
 
 class Element {
-  GtkCssProvider *cssProvider = nullptr;
-
  public:
   // virtual destructor fixes diamond problem undefined behaivour.
   virtual ~Element();
 
   GtkWidget *widget;
-  std::vector<std::unique_ptr<Element>> childrens;
-  std::string css;
+  std::vector<std::unique_ptr<Element>> children;
+  Style style;
 
-  void add(std::unique_ptr<Element> &&element);
-  virtual void visible(bool value = true);
-  void addClass(const std::string &classNames);
-  void removeClass(const std::string &className);
-  void style(const std::string &value);
-  void size(int16_t width, int16_t height);
-  void tooltip(const std::string &text);
-  void focus();
+  Element* add(std::unique_ptr<Element> &&element);
+  virtual Element* visible(bool value = true);
+  Element* addClass(const std::string &classNames);
+  Element* removeClass(const std::string &className);
+  Element* size(int16_t width, int16_t height);
+  Element* tooltip(const std::string &text);
+  Element* focus();
 
   /*
     Equivalent CSS selectors:
     GTK_STATE_FLAG_PRELIGHT - :hover
   */
-  void addState(GtkStateFlags flag);
-  void removeState(GtkStateFlags flag);
+  Element* addState(GtkStateFlags flag);
+  Element* removeState(GtkStateFlags flag);
 };
 
 class PointerEvents : virtual public Element {
@@ -48,15 +43,15 @@ class PointerEvents : virtual public Element {
   PointerCallback pointerUpCallback;
 
  public:
-  void onPointerDown(const PointerCallback &callback);
-  void onPointerUp(const PointerCallback &callback);
+  PointerEvents* onPointerDown(const PointerCallback &callback);
+  PointerEvents* onPointerUp(const PointerCallback &callback);
 };
 
 class ScrollEvents : virtual public Element {
   std::function<void(ScrollDirection)> scrollCallback;
 
  public:
-  void onScroll(const std::function<void(ScrollDirection)> &callback);
+  ScrollEvents* onScroll(const std::function<void(ScrollDirection)> &callback);
 };
 
 class HoverEvents : virtual public Element {
@@ -67,8 +62,8 @@ class HoverEvents : virtual public Element {
                                 gpointer data);
 
  public:
-  void onHover(const HoverCallback &callback);
-  void onHoverOut(const HoverCallback &callback);
+  HoverEvents* onHover(const HoverCallback &callback);
+  HoverEvents* onHoverOut(const HoverCallback &callback);
 };
 
 class KeyboardEvents : virtual public Element {
@@ -76,36 +71,36 @@ class KeyboardEvents : virtual public Element {
   Callback keyDownCallback;
 
  public:
-  void onKeyDown(const Callback &callback);
+  KeyboardEvents* onKeyDown(const Callback &callback);
 };
 
 class VisibilityEvents : public virtual Element {
   std::function<void()> hideCallback;
 
  public:
-  void onHide(const std::function<void()> &callback);
+  VisibilityEvents* onHide(const std::function<void()> &callback);
 };
 
 class Box : public Element {
  public:
   Box(GtkOrientation orientation = GTK_ORIENTATION_HORIZONTAL);
-  void gap(std::uint16_t value);
-  void spaceEvenly(bool value);
-  void prependChild(std::unique_ptr<Element> &&child);
+  Box* gap(std::uint16_t value);
+  Box* spaceEvenly(bool value);
+  Box* prependChild(std::unique_ptr<Element> &&child);
 };
 
 class Label : public Element {
  public:
   Label(const std::string &value = "");
-  void set(const std::string &value);
+  Label* set(const std::string &value);
 };
 
 class Icon : public Box {
  public:
   Label *label = nullptr;
   Icon();
-  void set(const std::string &name);
-  void setImage(const std::string &path);
+  Icon* set(const std::string &name);
+  Icon* setImage(const std::string &path);
 };
 
 class Button : public Element {
@@ -121,11 +116,11 @@ class Button : public Element {
   Icon *endIcon = nullptr;
   Button(Type type = Type::IconText, Variant variant = Tonal,
          Size size = Medium);
-  void setContent(std::unique_ptr<Element> &&element);
-  void setContent(const std::string &value);
-  void onClick(const std::function<void()> &callback);
+  Button* setContent(std::unique_ptr<Element> &&element);
+  Button* setContent(const std::string &value);
+  Button* onClick(const std::function<void()> &callback);
   bool disabled();
-  void disabled(bool value);
+  Button* disabled(bool value);
 };
 
 class ScrolledWindow : public Element {
@@ -140,10 +135,10 @@ class Input : public KeyboardEvents {
  public:
   Input();
   std::string value();
-  void value(const std::string &value);
-  void placeholder(const std::string &value);
-  void onChange(const std::function<void()> &callback);
-  void onSubmit(const std::function<void()> &callback);
+  Input* value(const std::string &value);
+  Input* placeholder(const std::string &value);
+  Input* onChange(const std::function<void()> &callback);
+  Input* onSubmit(const std::function<void()> &callback);
 };
 
 class Slider : public PointerEvents, public ScrollEvents {
@@ -152,8 +147,8 @@ class Slider : public PointerEvents, public ScrollEvents {
  public:
   Slider();
   uint8_t value();
-  void value(uint8_t value);
-  void onChange(const std::function<void()> &callback);
+  Slider* value(uint8_t value);
+  Slider* onChange(const std::function<void()> &callback);
 };
 
 class FlowBoxChild : public Element {
@@ -167,10 +162,10 @@ class FlowBox : public Element {
 
  public:
   FlowBox();
-  void gap(std::uint16_t value);
-  void spaceEvenly(bool value);
-  void columns(std::uint8_t value);
-  void onChildClick(const ChildCallback &callback);
+  FlowBox* gap(std::uint16_t value);
+  FlowBox* spaceEvenly(bool value);
+  FlowBox* columns(std::uint8_t value);
+  FlowBox* onChildClick(const ChildCallback &callback);
   FlowBoxChild *add(std::unique_ptr<Element> &&element);
 };
 
@@ -186,7 +181,7 @@ class Window : public EventBox {
  public:
   Window(GtkWindowType type, GtkLayerShellKeyboardMode keyboardMode =
                                  GTK_LAYER_SHELL_KEYBOARD_MODE_NONE);
-  void align(Align horizontal, Align vertical);
+  Window* align(Align horizontal, Align vertical);
   std::tuple<Align, Align> align();
 };
 
@@ -197,7 +192,7 @@ class Dialog : public Window {
   Box *body;
   Box *actions;
   Dialog(Element *parent, Window *window);
-  void visible(bool value) override;
+  Dialog* visible(bool value) override;
 };
 
 class MenuItem : public Element {
@@ -205,7 +200,7 @@ class MenuItem : public Element {
 
  public:
   MenuItem(const std::string &label, const std::string &icon = "");
-  void onClick(const std::function<void()> &callback);
+  MenuItem* onClick(const std::function<void()> &callback);
 };
 
 class MenuSeparator : public Element {
@@ -216,8 +211,8 @@ class MenuSeparator : public Element {
 class Menu : public VisibilityEvents {
  public:
   Menu();
-  void add(std::unique_ptr<Element> &&child);
-  void visible(bool value = true) override;
+  Menu* add(std::unique_ptr<Element> &&child);
+  Menu* visible(bool value = true) override;
 };
 
 class Transition {
@@ -237,6 +232,10 @@ class Transition {
   Frame current;
   int16_t duration;
   static gboolean update(gpointer data);
-  void to(Frame to, const std::function<void()> &onFinish);
+  Transition* to(Frame to, const std::function<void()> &onFinish);
   Transition(Element *element);
+  Transition* duration(int16_t value) {
+    this->duration = value;
+    return this;
+  }
 };
