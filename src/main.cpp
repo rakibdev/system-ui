@@ -2,25 +2,31 @@
 
 #include "config.h"
 #include "daemon.h"
+#include "utils/argparser.h"
 #include "utils/log.h"
 
 void usage() {
   Log::Table content = {
-      {"daemon", "start|stop", "Background service."},
+      {"daemon", "", "Start background service."},
+      {"stop", "daemon", "Stop background service."},
+      {"", "--css <path> [path...]", "CSS files."},
+      {"", "--watch", "Enable file watching for CSS changes."},
       {""},
-      {"{extension}", "Run or exit extension."},
-      {"{extension}", "[...args]", "Pass message to extension."},
+
+      {"{filename.so}", "[...args]", "Load extension."},
+      {"stop", "{filename}", "Unload extension."},
       {"e.g."},
-      {"/path/launcher.so"},
-      {"patch", "--help"},
+      {"launcher.so"},
+      {"stop launcher"},
       {""},
-      {"Daemon Logs:", "", LOG_FILE},
-      {"App Data:", "", APP_DATA_FILE}};
+      {"Daemon Logs:", "", LOG_FILE}};
   Log::table(content);
 }
 
 int main(int argc, char* argv[]) {
-  if (argc <= 1 || std::string(argv[1]) == "--help") {
+  ArgParser parser(argc, argv);
+
+  if (parser.args.empty() || parser.has("--help")) {
     usage();
     return 0;
   }
@@ -40,16 +46,16 @@ int main(int argc, char* argv[]) {
   }
 
   if (status > 0) {
-    if (command == "daemon start") {
+    if (command == "daemon") {
       Log::info("Daemon running.");
       Daemon::initialize();
-    } else if (command == "daemon stop") {
+    } else if (command == "stop daemon") {
       Log::error("Daemon hasn't been started.");
       return 1;
     }
   }
 
-  if (output.size()) std::cout << output << std::endl;
+  if (!output.empty()) std::cout << output << std::endl;
 
   return status;
 }

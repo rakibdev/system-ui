@@ -1,12 +1,12 @@
 .launcher .body {
   padding: 4px;
   border-radius: 24px;
-  color: @neutral_20;
-  background-color: @window_background;
+  color: @foreground;
+  background-color: @background;
 }
 
 .launcher .search {
-  background-color: @primary_surface_2;
+  background-color: @card;
   border-radius: 24px;
   padding: 0 16px;
   margin: 8px;
@@ -17,7 +17,7 @@
 }
 
 .launcher .grid + .grid {
-  border-top: 1px solid @primary_surface_2;
+  border-top: 1px solid @border;
 }
 
 .launcher .app {
@@ -27,7 +27,7 @@
 
 .launcher .app:hover,
 .launcher .app:focus {
-  background-color: @primary_surface_2;
+  background-color: @hover;
 }
 
 .launcher .app .icon {
@@ -35,7 +35,7 @@
   min-height: 44px;
   border-radius: 50%;
   background-size: 30px;
-  background-color: @primary_surface_3;
+  background-color: @card;
 }
 
 .launcher .app .name {
@@ -49,7 +49,7 @@
 
 .launcher .placeholder {
   padding: 24px;
-  color: @neutral_40;
+  color: @secondary;
 }
 
 .launcher .placeholder .icon label {

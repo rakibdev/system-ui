@@ -3,6 +3,7 @@
 #include <source_location>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Log {
@@ -17,12 +18,12 @@ constexpr const char* green = "\033[0;32m";
 
 extern std::string saveInFile;
 
-void info(const std::string& message, const std::source_location& location =
-                                          std::source_location::current());
-void error(const std::string& message, const std::source_location& location =
-                                           std::source_location::current());
-void warn(const std::string& message, const std::source_location& location =
-                                          std::source_location::current());
+void info(std::string_view message, const std::source_location& location =
+                                        std::source_location::current());
+void error(std::string_view message, const std::source_location& location =
+                                         std::source_location::current());
+void warn(std::string_view message, const std::source_location& location =
+                                        std::source_location::current());
 
 using Table = std::vector<std::vector<std::string>>;
 void table(Table value);

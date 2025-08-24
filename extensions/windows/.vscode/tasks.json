@@ -11,7 +11,7 @@
     {
       "label": "Run",
       "type": "shell",
-      "command": "system-ui exit daemon &> /dev/null; system-ui run daemon",
+      "command": "ui daemon stop &> /dev/null; ui daemon start",
       "presentation": { "clear": true, "reveal": "silent" },
       "dependsOn": ["Build"]
     },

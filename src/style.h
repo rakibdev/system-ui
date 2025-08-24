@@ -4,12 +4,14 @@
 
 #include <string>
 
+#include "utils/log.h"
+
 class Style {
   GtkCssProvider* provider = nullptr;
   GtkWidget* widget;
 
  public:
-  Style(GtkWidget* widget) : widget(widget) {
+  Style(GtkWidget* widget = nullptr) : widget(widget) {
     provider = gtk_css_provider_new();
   }
   ~Style() {
@@ -24,10 +26,13 @@ class Style {
     provider = nullptr;
   }
   void css(const std::string& content) {
+    if (content.empty()) return;
+
     GError* error = nullptr;
     gtk_css_provider_load_from_data(provider, content.c_str(), -1, &error);
     if (error) {
-      Log::error("Invalid CSS: " + std::string(error->message));
+      Log::error("Invalid CSS: " + std::string(error->message) +
+                 " | Content: " + content.substr(0, 50) + "...");
       g_error_free(error);
       return;
     }

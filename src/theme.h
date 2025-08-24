@@ -1,30 +1,18 @@
 #pragma once
 
-#include <gtk/gtk.h>
+#include <sstream>
+#include <string>
 
 #include "config.h"
 
-bool validateHex(const std::string& hex);
-uint32_t argbFromHex(const std::string& hex);
-std::string hexFromArgb(uint32_t argb);
-
-struct Rgb {
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-};
-Rgb rgbFromHex(const std::string& hex);
-
 namespace Theme {
-extern std::string defaultColor;
-AppData::Theme fromColor(const std::string& hex);
-AppData::Theme fromImage(cairo_surface_t* surface);
+inline std::string getCssVariables() {
+  Config& config = systemUiConfig.get();
 
-cairo_surface_t* resize(cairo_surface_t* source, uint16_t width,
-                        uint16_t height, uint16_t newWidth = 24);
-
-std::tuple<std::filesystem::path, AppData::Theme> createIcon(
-    const std::string& name);
-
-void apply(const std::string& color = "");
+  std::stringstream css;
+  for (const auto& [key, value] : config.theme) {
+    css << "@define-color " << key << " " << value << ";\n";
+  }
+  return css.str();
+}
 }

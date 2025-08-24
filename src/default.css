@@ -1,4 +1,4 @@
-@define-color window_background mix(#000, @primary_surface, 0.6);
+@define-color window-background mix(#000, @card, 0.6);
 
 window {
   background-color: transparent;
@@ -6,7 +6,7 @@ window {
 
 .body-small {
   font-size: 14px;
-  color: @neutral_40;
+  color: @foreground;
 }
 
 .icon.image {
@@ -28,8 +28,8 @@ window {
 }
 
 button.filled {
-  background-color: @primary_40;
-  color: @primary_surface;
+  background-color: @primary;
+  color: @primaryForeground;
 }
 
 button.circle {
@@ -47,7 +47,7 @@ button.circle.small {
   min-width: 336px;
   padding: 16px 0;
   border-radius: 24px;
-  background-color: @primary_surface_2;
+  background-color: @card;
 } */
 
 .dialog-container.fullscreen .dialog {
@@ -63,7 +63,7 @@ button.circle.small {
 .dialog > .body {
   /* flex: 1; */
   padding: 0 24px;
-  background-color: @primary_surface_2;
+  background-color: @card;
 }
 
 .dialog > .actions {

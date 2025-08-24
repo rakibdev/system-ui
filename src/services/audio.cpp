@@ -7,6 +7,7 @@
 
 #include <cmath>
 
+#include "../utils/debounce.h"
 #include "glaze/json.hpp"
 #include "pipewire/thread-loop.h"
 

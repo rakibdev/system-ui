@@ -8,34 +8,15 @@
 #include <unistd.h>
 
 #include <csignal>
+#include <filesystem>
+#include <glaze/glaze.hpp>
 
 #include "config.h"
-#include "theme.h"
+#include "utils/css.h"
 #include "utils/file.h"
-
-// namespace Extensions {
-// std::unique_ptr<ExtensionManager> manager;
-
-// void loadOrUnload(const std::string& value, std::string& error) {
-//   std::string name = ExtensionManager::toId(value);
-//   auto it = manager->extensions.find(name);
-//   if (it == manager->extensions.end())
-//     manager->load(name, error);
-//   else
-//     manager->unload(name);
-// }
-
-// void initialize() { manager = std::make_unique<ExtensionManager>(); }
-
-// void destroy() { manager.reset(); }
-// }
 
 namespace Daemon {
 GIOChannel* channel;
-std::unique_ptr<FileWatcher> userCssWatcher;
-#ifdef DEV
-std::unique_ptr<FileWatcher> defaultCssWatcher;
-#endif
 
 ExtensionManager manager;
 
@@ -45,15 +26,11 @@ void destroy(int code) {
                           nullptr);  // also closes internal socket
     g_io_channel_unref(channel);
   }
-  userCssWatcher.reset();
-#ifdef DEV
-  defaultCssWatcher.reset();
-#endif
   exit(code);
 }
 
-void onRequest(const std::string& content, int client) {
-  auto sendResponse = [client](const std::string&& content = "",
+void onRequest(const std::string& command, int client) {
+  auto sendResponse = [client](const std::string& content = "",
                                int status = 0) {
     std::string json = "{ \"content\": \"" + content +
                        "\", \"status\": " + std::to_string(status) + " }";
@@ -61,32 +38,61 @@ void onRequest(const std::string& content, int client) {
   };
 
   std::vector<std::string> args;
-  std::stringstream stream(content);
+  std::stringstream stream(command);
   std::string arg;
   while (stream >> arg) args.push_back(arg);
 
   if (args[0] == "daemon") {
-    if (args[1] == "start")
-      return sendResponse("Daemon already running.");
-    else if (args[1] == "stop") {
+    return sendResponse("Daemon already running.");
+  } else if (args[0] == "stop" && args.size() > 1) {
+    if (args[1] == "daemon") {
       sendResponse("Daemon exited.");
       destroy(EXIT_SUCCESS);
+    } else {
+      auto extension = manager.find(args[1]);
+      if (extension) {
+        for (auto& [key, value] : manager.extensions) {
+          if (value.get() == extension) {
+            manager.unload(key);
+            sendResponse("Unloaded", 0);
+            return;
+          }
+        }
+      }
+      sendResponse("Extension not found", 1);
     }
-  }
+    return;
 
-  std::string error;
-  std::string id = ExtensionManager::toId(args[0]);
-  auto it = manager.extensions.find(id);
-  if (it == manager.extensions.end()) {
-    if (std::filesystem::exists(args[0])) {
-      manager.load(args[0], error);
-      sendResponse();
-    }
-  } else if (args.size() > 1) {
-    auto response = it->second->onRequest(args);
-    sendResponse(response.content, response.status);
   } else {
-    manager.unload(id);
+    if (args[0].ends_with(".so")) {
+      std::string path = args[0];
+      auto extension = manager.find(path);
+
+      if (!extension) {
+        std::string error;
+        manager.load(path, error);
+        if (!error.empty()) {
+          sendResponse(error, 1);
+          return;
+        }
+        extension = manager.find(path);
+      }
+
+      if (extension) {
+        if (args.size() > 1) {
+          std::ostringstream extensionArgs;
+          for (size_t i = 1; i < args.size(); ++i) {
+            if (i > 1) extensionArgs << " ";
+            extensionArgs << args[i];
+          }
+          auto response = extension->onRequest(extensionArgs.str());
+          sendResponse(response.content, response.status);
+        }
+      } else {
+        sendResponse("Extension not found", 1);
+      }
+      return;
+    }
   }
 
   sendResponse("Unhandled command.", 127);
@@ -158,8 +164,7 @@ int request(const std::string& command) {
     Extension::Response response;
     auto error = glz::read_json(response, buffer);
     if (error) {
-      Log::error("Daemon responded invalid: " +
-                 glz::format_error(error, buffer));
+      Log::error("Daemon response: " + glz::format_error(error, buffer));
       return 1;
     } else {
       Log::info(response.content);
@@ -198,18 +203,9 @@ void initialize() {
   g_setenv("GDK_BACKEND", "wayland", true);
   gtk_init(nullptr, nullptr);
 
-  // Apply theme/CSS after gtk_init().
-  Theme::apply();
-  userCssWatcher =
-      std::make_unique<FileWatcher>(USER_CSS, [](GFileMonitorEvent event) {
-        if (event == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) Theme::apply();
-      });
-#ifdef DEV
-  defaultCssWatcher =
-      std::make_unique<FileWatcher>(DEFAULT_CSS, [](GFileMonitorEvent event) {
-        if (event == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT) Theme::apply();
-      });
-#endif
+  cssManager->add(SHARE_DIR + "/src/default.css");
+  std::string userCss = CONFIG_DIR + "/src/system-ui.css";
+  if (std::filesystem::exists(userCss)) cssManager->add(userCss, 100);
 
   gtk_main();
 }

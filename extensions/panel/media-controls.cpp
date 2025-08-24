@@ -64,23 +64,20 @@ void Player::updateTheme() {
     className = ".player." + className;
   }
 
-  std::string css = className +
-                    " { background-color: " + theme["primary_surface_2"] +
-                    "; color: " + theme["neutral_20"] + "; } ";
+  std::string css = className + " { background-color: " + theme["card"] +
+                    "; color: " + theme["foreground"] + "; } ";
+  css += className + " trough { background-color: " + theme["primary"] + "; } ";
   css +=
-      className + " trough { background-color: " + theme["primary_80"] + "; } ";
-  css += className + " highlight { background-color: " + theme["primary_40"] +
-         "; } ";
+      className + " highlight { background-color: " + theme["primary"] + "; } ";
 
   css +=
-      className +
-      " .thumbnail { background-color: " + theme["primary_surface"] + "; " +
+      className + " .thumbnail { background-color: " + theme["background"] +
+      "; " +
       (invalidArt ? "} "
                   : "background-image: url('" + controller->artUrl + "'); } ");
 
   css += className + " .thumbnail label { color: " +
-         theme[thumbnailBackgroundDark ? "primary_40" : "primary_surface"] +
-         "; } ";
+         theme[thumbnailBackgroundDark ? "primary" : "background"] + "; } ";
 
   gtk_css_provider_load_from_data(cssProvider, css.c_str(), -1, nullptr);
 }
@@ -117,18 +114,20 @@ void Player::update() {
 std::unique_ptr<EventBox> Player::create() {
   auto _title = std::make_unique<Label>();
   title = _title.get();
-  gtk_widget_set_halign(title->widget, GTK_ALIGN_START); // Keep direct GTK call
+  gtk_widget_set_halign(title->widget,
+                        GTK_ALIGN_START);  // Keep direct GTK call
 
-  auto _artist = std::make_unique<Label>()
-                     ->addClass("artist");
+  auto _artist = std::make_unique<Label>()->addClass("artist");
   artist = _artist.get();
-  gtk_widget_set_halign(artist->widget, GTK_ALIGN_START); // Keep direct GTK call
+  gtk_widget_set_halign(artist->widget,
+                        GTK_ALIGN_START);  // Keep direct GTK call
 
   auto details = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL)
                      ->add(std::move(_title))
                      ->add(std::move(_artist));
-  gtk_widget_set_hexpand(details->widget, true); // Keep direct GTK call
-  gtk_widget_set_valign(details->widget, GTK_ALIGN_CENTER); // Keep direct GTK call
+  gtk_widget_set_hexpand(details->widget, true);  // Keep direct GTK call
+  gtk_widget_set_valign(details->widget,
+                        GTK_ALIGN_CENTER);  // Keep direct GTK call
 
   auto _thumbnail = std::make_unique<Button>(Button::Type::Icon, Button::None)
                         ->addClass("thumbnail")
@@ -139,18 +138,20 @@ std::unique_ptr<EventBox> Player::create() {
                     ->add(std::move(details))
                     ->add(std::move(_thumbnail));
 
-  auto _slider = std::make_unique<Slider>()
-                     ->onPointerDown([this](GdkEventButton *) { dragging = true; })
-                     ->onPointerUp([this](GdkEventButton *) { dragging = false; })
-                     ->onScroll([this](ScrollDirection direction) {
-                       dragging = true;
-                       onDragEnd->call();
-                     })
-                     ->onChange([this]() {
-                       if (dragging) controller->progress(slider->value());
-                     });
+  auto _slider =
+      std::make_unique<Slider>()
+          ->onPointerDown([this](GdkEventButton *) { dragging = true; })
+          ->onPointerUp([this](GdkEventButton *) { dragging = false; })
+          ->onScroll([this](ScrollDirection direction) {
+            dragging = true;
+            onDragEnd->call();
+          })
+          ->onChange([this]() {
+            if (dragging) controller->progress(slider->value());
+          });
   slider = _slider.get();
-  gtk_range_set_increments((GtkRange *)slider->widget, 1, 5); // Keep direct GTK call
+  gtk_range_set_increments((GtkRange *)slider->widget, 1,
+                           5);  // Keep direct GTK call
 
   auto _element = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL)
                       ->addClass("player")
@@ -197,7 +198,8 @@ void MediaControls::deactivate() {
 }
 
 std::unique_ptr<Box> MediaControls::create() {
-  auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL); // Assume vertical based on usage
+  auto box = std::make_unique<Box>(
+      GTK_ORIENTATION_VERTICAL);  // Assume vertical based on usage
   element = box.get();
   return box;
 }

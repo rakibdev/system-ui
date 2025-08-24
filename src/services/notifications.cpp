@@ -1,6 +1,6 @@
 #include "notifications.h"
 
-#include "../utils.h"
+#include "../utils/log.h"
 
 #define DBUS_PATH "/org/freedesktop/Notifications"
 #define DBUS_NAME "org.freedesktop.Notifications"

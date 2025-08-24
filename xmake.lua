@@ -1,7 +1,6 @@
-set_languages("c++latest")
-set_defaultmode("debug")
-add_rules("mode.debug", "mode.release")
-if is_mode("debug") then add_defines("DEV") end
+includes("xmake.utils.lua")
+
+setup()
 
 add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", {system = true})
 
@@ -9,27 +8,6 @@ set_installdir("/usr/")
 local pcFile = "/lib/pkgconfig/system-ui.pc"
 local headerDir = "include/system-ui"
 local shareDir = "share/system-ui"
-
-local materialColorUtilitiesDir = "libs/material-color-utilities"
-target("material-color-utilities")
-    set_default(false)
-    set_kind("object")
-    add_files(materialColorUtilitiesDir .. "/cpp/utils/utils.cc")
-    add_files(materialColorUtilitiesDir .. "/cpp/cam/**.cc")
-    add_files(materialColorUtilitiesDir .. "/cpp/quantize/**.cc")
-    add_files(materialColorUtilitiesDir .. "/cpp/score/**.cc")
-    remove_files(materialColorUtilitiesDir .. "/cpp/**_test.cc" )
-    add_includedirs(materialColorUtilitiesDir, {public = true})
-    
-    -- Fixes linking relocation for shared "system-ui" target.
-    add_cxxflags("-fPIC")
-
-    before_build(function (target)
-        local changes = os.iorun("git status --porcelain " .. materialColorUtilitiesDir)
-        if (#changes == 0) then
-            os.exec("git apply libs/material-color-utilities.patch --directory=" .. materialColorUtilitiesDir)
-        end
-    end)
 
 function createPkgConfig(target)
     -- pkg-config file.
@@ -54,19 +32,22 @@ end
 function removePkgConfig(target)
     os.rm(target:installdir() .. "/" .. headerDir)
     os.rm(target:installdir() .. pcFile)
+end
 
 target("system-ui")
     set_kind("shared")
+    set_build_dir()
+
     add_files("src/**.cpp")
+    -- todo: remove
+    remove_files("src/services/audio.cpp")
 
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze")
-    add_deps("material-color-utilities")
     
-    -- Fixes linking relocation for .so extensions.
     add_cxxflags("-fPIC")
 
     add_installfiles("src/*.h", { prefixdir = headerDir })
-    add_installfiles("src/components/*.h", {prefixdir = headerDir .. "/components"})
+    add_installfiles("src/services/*.h", {prefixdir = headerDir .. "/services"})
     add_installfiles("src/default.css", { prefixdir = shareDir })
     add_installfiles("extensions", { prefixdir = shareDir .. "/extensions" })
     after_install(function (target)
@@ -76,7 +57,7 @@ target("system-ui")
         removePkgConfig(target)
     end)
 
-target("app")
-    set_basename("system-ui")
+target("ui")
+    set_build_dir()
     add_deps("system-ui")
     add_rpathdirs("@loader_path")

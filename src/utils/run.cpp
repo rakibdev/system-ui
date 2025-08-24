@@ -2,10 +2,16 @@
 
 #include <spawn.h>
 
+#include <array>
 #include <csignal>
+#include <cstring>
+#include <memory>
+#include <string>
 #include <vector>
 
-std::string run(const std::string& command) {
+#include "log.h"
+
+std::string run(std::string& command) {
   std::array<char, 128> buffer;
   std::string result;
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"),
@@ -23,7 +29,7 @@ void runNewProcess(const std::string& command) {
   std::vector<char*> args;
   std::string arg;
   bool inQuotes = false;
-  for (int i = 0; i < command.length(); i++) {
+  for (size_t i = 0; i < command.length(); i++) {
     auto character = command[i];
     if ((character == ' ' && !inQuotes)) {
       args.emplace_back(strdup(arg.c_str()));

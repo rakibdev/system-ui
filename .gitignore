@@ -1,5 +1,5 @@
 build/
 .xmake/
 .cache/
+.cursor/
 compile_commands.json
-.aider*

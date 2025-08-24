@@ -4,11 +4,11 @@
 #include <numeric>
 #include <sstream>
 
-#include "../../src/components/audio.h"
-#include "../../src/components/bluetooth.h"
-#include "../../src/components/hyprland.h"
-#include "../../src/components/network.h"
 #include "../../src/element.h"
+#include "../../src/services/audio.h"
+#include "../../src/services/bluetooth.h"
+#include "../../src/services/hyprland.h"
+#include "../../src/services/network.h"
 #include "../../src/utils.h"
 #include "notifications.h"
 #include "panel.h"
@@ -29,21 +29,23 @@ class Tile : public Button {
 
   Tile() {
     addClass("tile");
-    gtk_orientable_set_orientation((GtkOrientable *)content->widget,
-                                   GTK_ORIENTATION_VERTICAL); // Keep direct GTK call
+    gtk_orientable_set_orientation(
+        (GtkOrientable *)content->widget,
+        GTK_ORIENTATION_VERTICAL);  // Keep direct GTK call
 
     // End icon spacer.
-    gtk_widget_set_hexpand(content->widget, true); // Keep direct GTK call
+    gtk_widget_set_hexpand(content->widget, true);  // Keep direct GTK call
 
     auto _label = std::make_unique<Label>();
     label = _label.get();
-    gtk_widget_set_halign(label->widget, GTK_ALIGN_START); // Keep direct GTK call
+    gtk_widget_set_halign(label->widget,
+                          GTK_ALIGN_START);  // Keep direct GTK call
     content->add(std::move(_label));
 
-    auto _description = std::make_unique<Label>()
-                            ->addClass("body-small");
+    auto _description = std::make_unique<Label>()->addClass("body-small");
     description = _description.get();
-    gtk_widget_set_halign(description->widget, GTK_ALIGN_START); // Keep direct GTK call
+    gtk_widget_set_halign(description->widget,
+                          GTK_ALIGN_START);  // Keep direct GTK call
     content->add(std::move(_description));
   }
 };
@@ -141,8 +143,7 @@ void onClick() {
 }
 
 std::unique_ptr<Tile> create() {
-  auto _tile = std::make_unique<Tile>()
-                   ->onClick(onClick);
+  auto _tile = std::make_unique<Tile>()->onClick(onClick);
   tile = _tile.get();
   return _tile;
 }
@@ -211,9 +212,8 @@ std::unique_ptr<EventBox> create() {
   tile->endIcon->set("keyboard_arrow_right");
   // tile->onClick(AudioDialog::create); // Keep commented
 
-  auto eventBox = std::make_unique<EventBox>()
-                      ->onScroll(onScoll)
-                      ->add(std::move(_tile));
+  auto eventBox =
+      std::make_unique<EventBox>()->onScroll(onScoll)->add(std::move(_tile));
   return eventBox;
 }
 }
@@ -263,8 +263,7 @@ void onClick() {
 }
 
 std::unique_ptr<Tile> create() {
-  auto _tile = std::make_unique<Tile>()
-                   ->onClick(onClick);
+  auto _tile = std::make_unique<Tile>()->onClick(onClick);
   tile = _tile.get();
   tile->startIcon->set("nightlight");
   tile->label->set("Night Light");
@@ -396,8 +395,7 @@ void update() {
 }
 
 std::unique_ptr<Tile> create() {
-  auto _tile = std::make_unique<Tile>()
-                   ->onClick(onClick);
+  auto _tile = std::make_unique<Tile>()->onClick(onClick);
   tile = _tile.get();
   tile->startIcon->set("memory");
   return _tile;
@@ -430,8 +428,7 @@ std::string get() {
 void update() { label->set(get()); }
 
 std::unique_ptr<Label> create() {
-  auto _label = std::make_unique<Label>()
-                    ->tooltip("Up time");
+  auto _label = std::make_unique<Label>()->tooltip("Up time");
   label = _label.get();
   return _label;
 }
@@ -454,8 +451,10 @@ void update() {
 }
 
 std::unique_ptr<Button> create() {
-  auto _button = std::make_unique<Button>(Button::Type::Text, Button::None, Button::Small)
-                     ->onClick([]() { run("xdg-open https://calendar.google.com/calendar"); });
+  auto _button =
+      std::make_unique<Button>(Button::Type::Text, Button::None, Button::Small)
+          ->onClick(
+              []() { run("xdg-open https://calendar.google.com/calendar"); });
   button = _button.get();
   return _button;
 }
@@ -526,8 +525,12 @@ Panel::Panel() {
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
   window->addClass("panel")
       ->align(Align::End, Align::Top)
-      ->onHover([this](bool self) { if (self) expand(true); })
-      ->onHoverOut([this](bool self) { if (self) expand(false); })
+      ->onHover([this](bool self) {
+        if (self) expand(true);
+      })
+      ->onHoverOut([this](bool self) {
+        if (self) expand(false);
+      })
       ->visible();
 
   auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
@@ -546,16 +549,16 @@ Panel::Panel() {
     body->add(std::move(grid));
   }
   {
-    auto footer = std::make_unique<Box>()
-                      ->addClass("footer")
-                      ->gap(8);
+    auto footer = std::make_unique<Box>()->addClass("footer")->gap(8);
 
-    auto power = std::make_unique<Button>(Button::Type::Icon, Button::None, Button::Small)
+    auto power = std::make_unique<Button>(Button::Type::Icon, Button::None,
+                                          Button::Small)
                      ->setContent("power_settings_new")
                      ->onClick([]() { run("poweroff"); });
     footer->add(std::move(power));
 
-    auto reboot = std::make_unique<Button>(Button::Type::Icon, Button::None, Button::Small)
+    auto reboot = std::make_unique<Button>(Button::Type::Icon, Button::None,
+                                           Button::Small)
                       ->setContent("restart_alt")
                       ->onClick([]() { run("reboot"); });
     footer->add(std::move(reboot));
@@ -563,7 +566,8 @@ Panel::Panel() {
     footer->add(Uptime::create());
 
     auto spacer = std::make_unique<Box>();
-    gtk_widget_set_hexpand((GtkWidget *)spacer->widget, true); // Keep direct GTK call
+    gtk_widget_set_hexpand((GtkWidget *)spacer->widget,
+                           true);  // Keep direct GTK call
     footer->add(std::move(spacer));
 
     footer->add(TimeDate::create());
@@ -578,9 +582,8 @@ Panel::Panel() {
   // body->add(std::move(Notifications::create())); // Keep commented
 
   // Window doesn't support padding. So box container is used.
-  auto container = std::make_unique<Box>()
-                       ->addClass("container")
-                       ->add(std::move(_body));
+  auto container =
+      std::make_unique<Box>()->addClass("container")->add(std::move(_body));
   window->add(std::move(container));
 
   onCollapse();

@@ -1,18 +1,18 @@
-![](demo/system-wide-theming.png)
+![](screenshots/system-wide-theming.png)
 
 Notice a black dot at top right corner? Hovering it smoothly reveals the panel. For a seamless fullscreen experience. No more taskbar distractions.
 
 ### Panel
 
-![](demo/panel.png)
+![](screenshots/panel.png)
 
 ### Launcher
 
-![](demo/launcher.png)
+![](screenshots/launcher.png)
 
 ### CLI Interface
 
-![](demo/cli-interface.png)
+![](screenshots/cli-interface.png)
 
 ## Installation
 

@@ -2,5 +2,5 @@
 
 #include <string>
 
-std::string run(const std::string& command);
+std::string run(std::string& command);
 void runNewProcess(const std::string& command);

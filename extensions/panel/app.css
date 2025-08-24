@@ -10,8 +10,8 @@
 
 .panel .body {
   border-radius: 24px;
-  color: @neutral_20;
-  background-color: @window_background;
+  color: var(--foreground);
+  background-color: var(--window-background);
 }
 
 .panel.expanded .body {
@@ -23,7 +23,7 @@
 }
 
 .panel .tile.filled .body-small {
-  color: @primary_surface;
+  color: var(--primary-foreground);
 }
 
 .panel .body .footer {

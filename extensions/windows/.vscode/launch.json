@@ -4,7 +4,7 @@
       "name": "Debug",
       "type": "lldb",
       "request": "attach",
-      "program": "system-ui",
+      "program": "ui",
       "preLaunchTask": "Run",
       "internalConsoleOptions": "neverOpen"
     }

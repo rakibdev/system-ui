@@ -8,7 +8,7 @@
 #define MPRIS_PATH "/org/mpris/MediaPlayer2"
 #define PLAYER_INTERFACE "org.mpris.MediaPlayer2.Player"
 
-void parseMetadata(GVariant* metadata, PlayerController* player) {
+void parseMetadata(GVariant* metadata, PlayerService* player) {
   GVariantIter iter;
   char* key;
   GVariant* value;
@@ -38,7 +38,7 @@ void parseMetadata(GVariant* metadata, PlayerController* player) {
   }
 }
 
-void parseProperties(GVariant* properties, PlayerController* player) {
+void parseProperties(GVariant* properties, PlayerService* player) {
   GVariantIter iter;
   g_variant_iter_init(&iter, properties);
   char* key;
@@ -57,8 +57,8 @@ void parseProperties(GVariant* properties, PlayerController* player) {
   }
 }
 
-PlayerController::PlayerController(GDBusConnection* connection,
-                                   const std::string& bus)
+PlayerService::PlayerService(GDBusConnection* connection,
+                             const std::string& bus)
     : connection(connection), bus(bus) {
   GVariant* result = g_dbus_connection_call_sync(
       connection, bus.c_str(), MPRIS_PATH, PROPERTIES_INTERFACE, "GetAll",
@@ -74,25 +74,25 @@ PlayerController::PlayerController(GDBusConnection* connection,
   }
 }
 
-PlayerController::~PlayerController() {
+PlayerService::~PlayerService() {
   if (propertiesChangeSignal != 0)
     g_dbus_connection_signal_unsubscribe(connection, propertiesChangeSignal);
 }
 
-void PlayerController::call(const std::string& method) {
+void PlayerService::call(const std::string& method) {
   GVariant* result = g_dbus_connection_call_sync(
       connection, bus.c_str(), MPRIS_PATH, PLAYER_INTERFACE, method.c_str(),
       nullptr, nullptr, G_DBUS_CALL_FLAGS_NONE, -1, nullptr, nullptr);
   g_variant_unref(result);
 }
 
-void PlayerController::onChange(const std::function<void()>& callback) {
+void PlayerService::onChange(const std::function<void()>& callback) {
   changeCallback = callback;
   auto changed = [](GDBusConnection* connection, const gchar* sender_name,
                     const gchar* object_path, const gchar* interface_name,
                     const gchar* signal_name, GVariant* parameters,
                     gpointer data) {
-    PlayerController* _this = static_cast<PlayerController*>(data);
+    PlayerService* _this = static_cast<PlayerService*>(data);
     GVariant* properties = g_variant_get_child_value(parameters, 1);
     parseProperties(properties, _this);
     g_variant_unref(properties);
@@ -104,13 +104,13 @@ void PlayerController::onChange(const std::function<void()>& callback) {
       nullptr);
 }
 
-void PlayerController::playPause() { call("PlayPause"); }
+void PlayerService::playPause() { call("PlayPause"); }
 
-void PlayerController::next() { call("Next"); }
+void PlayerService::next() { call("Next"); }
 
-void PlayerController::previous() { call("Previous"); }
+void PlayerService::previous() { call("Previous"); }
 
-uint8_t PlayerController::progress() {
+uint8_t PlayerService::progress() {
   GVariant* result = g_dbus_connection_call_sync(
       connection, bus.c_str(), MPRIS_PATH, PROPERTIES_INTERFACE, "Get",
       g_variant_new("(ss)", PLAYER_INTERFACE, "Position"),
@@ -123,7 +123,7 @@ uint8_t PlayerController::progress() {
   return position > 0 ? std::round((position * 100) / duration) : 0;
 }
 
-void PlayerController::progress(uint8_t percent) {
+void PlayerService::progress(uint8_t percent) {
   // position must be uint64. otherwise browser ignores method call.
   uint64_t position = (percent / 100.0) * duration;
   GVariant* result = g_dbus_connection_call_sync(
@@ -133,18 +133,18 @@ void PlayerController::progress(uint8_t percent) {
   g_variant_unref(result);
 }
 
-MediaController::MediaController() {
+MediaService::MediaService() {
   connection = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, nullptr);
 }
 
-MediaController::~MediaController() {
+MediaService::~MediaService() {
   if (nameOwnerChangeSignal != 0)
     g_dbus_connection_signal_unsubscribe(connection, nameOwnerChangeSignal);
   g_object_unref(connection);
 }
 
-std::vector<std::unique_ptr<PlayerController>> MediaController::getPlayers() {
-  std::vector<std::unique_ptr<PlayerController>> players;
+std::vector<std::unique_ptr<PlayerService>> MediaService::getPlayers() {
+  std::vector<std::unique_ptr<PlayerService>> players;
   GVariant* result = g_dbus_connection_call_sync(
       connection, DBUS_INTERFACE, DBUS_PATH, DBUS_INTERFACE, "ListNames",
       nullptr, G_VARIANT_TYPE("(as)"), G_DBUS_CALL_FLAGS_NONE, -1, nullptr,
@@ -155,7 +155,7 @@ std::vector<std::unique_ptr<PlayerController>> MediaController::getPlayers() {
   while (g_variant_iter_next(iter, "&s", &name)) {
     if (std::string_view(name).starts_with("org.mpris.MediaPlayer2.")) {
       players.emplace_back(
-          std::make_unique<PlayerController>(connection, std::string(name)));
+          std::make_unique<PlayerService>(connection, std::string(name)));
     }
   }
   g_variant_iter_free(iter);
@@ -163,13 +163,13 @@ std::vector<std::unique_ptr<PlayerController>> MediaController::getPlayers() {
   return players;
 }
 
-void MediaController::onPlayersChange(const std::function<void()>& callback) {
+void MediaService::onPlayersChange(const std::function<void()>& callback) {
   playersChangeCallback = callback;
   auto changed = [](GDBusConnection* connection, const gchar* sender_name,
                     const gchar* object_path, const gchar* interface_name,
                     const gchar* signal_name, GVariant* parameters,
                     gpointer data) {
-    MediaController* _this = static_cast<MediaController*>(data);
+    MediaService* _this = static_cast<MediaService*>(data);
     char *name, *to;
     g_variant_get(parameters, "(&s&s&s)", &name, nullptr, &to);
     if (!std::string_view(name).starts_with("org.mpris.MediaPlayer2.")) return;

@@ -22,4 +22,4 @@ Compiled .so file is copied to `~/.config/system-ui/extensions` automatically af
 
 1. Press F5 to execute [launch.json](.vscode/launch.json). This will trigger [build task, run daemon](.vscode/tasks.json) and attach debugger to it.
 2. Set desired breakpoints (breakpoints work regardless of current your working directory).
-3. Run the extension "system-ui run window-preview"
+3. Run the extension "system-ui run windows"

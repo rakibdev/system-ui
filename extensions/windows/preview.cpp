@@ -1,8 +1,12 @@
-#include "main.h"
-
 #include <system-ui/utils.h>
 
 #include <iostream>
+#include <string>
+#include <vector>
+
+#include "main.h"
+#include "services/hyprland.h"
+#include "utils.h"
 
 static void onTitleChange(void *data, zwlr_foreign_toplevel_handle_v1 *handle,
                           const char *title) {

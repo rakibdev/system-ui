@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../src/components/media.h"
 #include "../../src/element.h"
+#include "../../src/services/media.h"
 #include "../../src/utils/debounce.h"
 
 class Player {

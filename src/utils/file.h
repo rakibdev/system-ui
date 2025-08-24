@@ -4,8 +4,7 @@
 
 #include <functional>
 #include <string>
-
-#include "../config.h"
+#include <string_view>
 
 class FileWatcher {
   GFile* file;
@@ -15,11 +14,12 @@ class FileWatcher {
   Callback callback;
 
  public:
-  FileWatcher(const std::string& path, const Callback& callback);
+  FileWatcher(std::string_view path, const Callback& callback);
   ~FileWatcher();
 };
 
-void prepareDir(const std::string& path);
+void prepareDir(std::string_view path);
 
-std::string getAbsolutePath(const std::string& path,
-                            const std::string& parent = HOME);
+namespace File {
+std::string resolve(std::string_view path);
+}

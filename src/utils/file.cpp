@@ -1,8 +1,12 @@
 #include "file.h"
 
-FileWatcher::FileWatcher(const std::string& path, const Callback& callback)
+#include <filesystem>
+
+#include "../config.h"
+
+FileWatcher::FileWatcher(std::string_view path, const Callback& callback)
     : callback(callback) {
-  file = g_file_new_for_path(path.c_str());
+  file = g_file_new_for_path(std::string(path).c_str());
   monitor = g_file_monitor_file(file, G_FILE_MONITOR_NONE, nullptr, nullptr);
   auto changed = [](GFileMonitor* monitor, GFile* file, GFile* otherFile,
                     GFileMonitorEvent event, gpointer data) {
@@ -19,16 +23,16 @@ FileWatcher::~FileWatcher() {
   g_object_unref(file);
 }
 
-void prepareDir(const std::string& path) {
+void prepareDir(std::string_view path) {
   std::filesystem::path parent = std::filesystem::path(path).parent_path();
   if (!std::filesystem::exists(parent))
     std::filesystem::create_directories(parent);
 }
 
-std::string getAbsolutePath(const std::string& path,
-                            const std::string& parent) {
+namespace File {
+std::string resolve(std::string_view path) {
   if (path.starts_with("~/")) return HOME + path.substr(1);
-  if (path.starts_with("/")) return HOME + path;
-  if (path.starts_with("./")) return parent + path.substr(1);
-  return parent + "/" + path;
+  if (path.starts_with("/")) return std::string(path);
+  return std::filesystem::current_path() / path;
+}
 }

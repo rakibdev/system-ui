@@ -5,7 +5,7 @@
 #include <functional>
 #include <memory>
 
-class PlayerController {
+class PlayerService {
   GDBusConnection* connection;
   void call(const std::string& method);
   int propertiesChangeSignal = 0;
@@ -21,8 +21,8 @@ class PlayerController {
   uint64_t duration;
   std::string bus;
 
-  PlayerController(GDBusConnection* connection, const std::string& bus);
-  ~PlayerController();
+  PlayerService(GDBusConnection* connection, const std::string& bus);
+  ~PlayerService();
   void onChange(const std::function<void()>& callback);
   void playPause();
   void next();
@@ -31,14 +31,14 @@ class PlayerController {
   uint8_t progress();
 };
 
-class MediaController {
+class MediaService {
   GDBusConnection* connection;
   int nameOwnerChangeSignal = 0;
   std::function<void()> playersChangeCallback;
 
  public:
-  MediaController();
-  ~MediaController();
-  std::vector<std::unique_ptr<PlayerController>> getPlayers();
+  MediaService();
+  ~MediaService();
+  std::vector<std::unique_ptr<PlayerService>> getPlayers();
   void onPlayersChange(const std::function<void()>& callback);
 };

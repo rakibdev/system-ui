@@ -15,8 +15,8 @@ std::string getTime() {
   return time;
 }
 
-void write(const std::string& type, const std::string& color,
-           const std::string& message, const std::source_location& location) {
+void write(std::string_view type, std::string_view color,
+           std::string_view message, const std::source_location& location) {
   std::string filename =
       std::filesystem::path(location.file_name()).filename().string() + ": ";
   if (saveInFile.empty()) {
@@ -29,15 +29,15 @@ void write(const std::string& type, const std::string& color,
   }
 }
 
-void info(const std::string& message, const std::source_location& location) {
+void info(std::string_view message, const std::source_location& location) {
   write("info", blue, message, location);
 }
 
-void error(const std::string& message, const std::source_location& location) {
+void error(std::string_view message, const std::source_location& location) {
   write("error", red, message, location);
 }
 
-void warn(const std::string& message, const std::source_location& location) {
+void warn(std::string_view message, const std::source_location& location) {
   write("warn", yellow, message, location);
 }
 
