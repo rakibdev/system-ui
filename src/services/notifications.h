@@ -12,6 +12,7 @@ struct Notification {
   std::string appId;
   std::string imagePath;
   int duration = 2500;
+  guint timer = 0;
 
   struct Action {
     std::string id;
@@ -30,7 +31,7 @@ class NotificationManager {
                               gpointer data);
 
  public:
-  void handleNotify(GVariant *parameters, GDBusMethodInvocation *invocation);
+  void onNotify(GVariant *parameters, GDBusMethodInvocation *invocation);
 
   NotificationManager();
   ~NotificationManager();
@@ -39,5 +40,7 @@ class NotificationManager {
   void remove(uint index, RemoveReason reason);
   void clear();
   void invoke(uint index, const std::string &action);
+  void pause(uint index);
+  void startAutoHide(uint index);
   std::function<void()> onChange;
 };

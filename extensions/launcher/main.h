@@ -22,6 +22,7 @@ struct AppData {
   std::string icon;
   // todo: add colored or monochrome option.
   std::string color;
+  bool isCircular = false;
   std::map<std::string, AppAction> actions;
 };
 

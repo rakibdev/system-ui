@@ -1,17 +1,19 @@
+#include "main.h"
+
 #include <cmath>
 #include <filesystem>
 #include <iomanip>
 #include <numeric>
 #include <sstream>
 
-#include "../../src/element.h"
-#include "../../src/services/audio.h"
+#include "../../src/config.h"
+// #include "../../src/services/audio.h"  // TODO: Fix audio service dependency
 #include "../../src/services/bluetooth.h"
 #include "../../src/services/hyprland.h"
 #include "../../src/services/network.h"
-#include "../../src/utils.h"
+#include "../../src/utils/css.h"
+#include "../../src/utils/run.h"
 #include "notifications.h"
-#include "panel.h"
 
 class Tile : public Button {
  public:
@@ -37,12 +39,14 @@ class Tile : public Button {
     gtk_widget_set_hexpand(content->widget, true);  // Keep direct GTK call
 
     auto _label = std::make_unique<Label>();
+    _label->addClass("title");
     label = _label.get();
     gtk_widget_set_halign(label->widget,
                           GTK_ALIGN_START);  // Keep direct GTK call
     content->add(std::move(_label));
 
-    auto _description = std::make_unique<Label>()->addClass("body-small");
+    auto _description = std::make_unique<Label>();
+    _description->addClass("description");
     description = _description.get();
     gtk_widget_set_halign(description->widget,
                           GTK_ALIGN_START);  // Keep direct GTK call
@@ -143,7 +147,8 @@ void onClick() {
 }
 
 std::unique_ptr<Tile> create() {
-  auto _tile = std::make_unique<Tile>()->onClick(onClick);
+  auto _tile = std::make_unique<Tile>();
+  _tile->onClick(onClick);
   tile = _tile.get();
   return _tile;
 }
@@ -183,25 +188,27 @@ namespace AudioTile {
 Tile *tile;
 
 void onScoll(ScrollDirection direction) {
-  uint16_t volume =
-      std::clamp(Audio::defaultSink->volume +
-                     (direction == ScrollDirection::Up ? 10 : -10),
-                 0, 100);
-  Audio::volume(Audio::defaultSink, volume);
+  // TODO: Implement audio volume control
+  // uint16_t volume =
+  //     std::clamp(Audio::defaultSink->volume +
+  //                    (direction == ScrollDirection::Up ? 10 : -10),
+  //                0, 100);
+  // Audio::volume(Audio::defaultSink, volume);
 }
 
 void update() {
   std::string label = "Volume";
   std::string icon = "no_sound";
-  if (Audio::defaultSink) {
-    label = std::to_string(Audio::defaultSink->volume) + "%";
-    if (Audio::defaultSink->volume > 50)
-      icon = "volume_up";
-    else if (Audio::defaultSink->volume > 0)
-      icon = "volume_down";
-    else
-      icon = "volume_mute";
-  }
+  // TODO: Implement audio service integration
+  // if (Audio::defaultSink) {
+  //   label = std::to_string(Audio::defaultSink->volume) + "%";
+  //   if (Audio::defaultSink->volume > 50)
+  //     icon = "volume_up";
+  //   else if (Audio::defaultSink->volume > 0)
+  //     icon = "volume_down";
+  //   else
+  //     icon = "volume_mute";
+  // }
   tile->startIcon->set(icon);
   tile->setContent(label);
 }
@@ -212,8 +219,9 @@ std::unique_ptr<EventBox> create() {
   tile->endIcon->set("keyboard_arrow_right");
   // tile->onClick(AudioDialog::create); // Keep commented
 
-  auto eventBox =
-      std::make_unique<EventBox>()->onScroll(onScoll)->add(std::move(_tile));
+  auto eventBox = std::make_unique<EventBox>();
+  eventBox->onScroll(onScoll);
+  eventBox->add(std::move(_tile));
   return eventBox;
 }
 }
@@ -263,7 +271,8 @@ void onClick() {
 }
 
 std::unique_ptr<Tile> create() {
-  auto _tile = std::make_unique<Tile>()->onClick(onClick);
+  auto _tile = std::make_unique<Tile>();
+  _tile->onClick(onClick);
   tile = _tile.get();
   tile->startIcon->set("nightlight");
   tile->label->set("Night Light");
@@ -395,7 +404,8 @@ void update() {
 }
 
 std::unique_ptr<Tile> create() {
-  auto _tile = std::make_unique<Tile>()->onClick(onClick);
+  auto _tile = std::make_unique<Tile>();
+  _tile->onClick(onClick);
   tile = _tile.get();
   tile->startIcon->set("memory");
   return _tile;
@@ -428,7 +438,8 @@ std::string get() {
 void update() { label->set(get()); }
 
 std::unique_ptr<Label> create() {
-  auto _label = std::make_unique<Label>()->tooltip("Up time");
+  auto _label = std::make_unique<Label>();
+  _label->tooltip("Up time");
   label = _label.get();
   return _label;
 }
@@ -452,25 +463,102 @@ void update() {
 
 std::unique_ptr<Button> create() {
   auto _button =
-      std::make_unique<Button>(Button::Type::Text, Button::None, Button::Small)
-          ->onClick(
-              []() { run("xdg-open https://calendar.google.com/calendar"); });
+      std::make_unique<Button>(Button::Type::Text, Button::None, Button::Small);
+  _button->onClick([]() {
+    std::string command = "xdg-open https://calendar.google.com/calendar";
+    run(command);
+  });
   button = _button.get();
   return _button;
 }
 }
 
 void Panel::update() {
+  if (!window) return;
+
   CpuTile::update();
   RamTile::update();
 
   for (auto &player : mediaControls->players) player->updateSlider();
 }
 
-void Panel::beforeExpandStart() {
-  window->addClass("expanded");
-  for (const auto &child : body->children) child->visible();
+void Panel::createWindow() {
+  if (window) return;
 
+  window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
+  window->addClass("panel");
+
+  window->size(440, 500);
+
+  window->onKeyDown([this](GdkEventKey *event) {
+    if (event->keyval == GDK_KEY_Escape) {
+      destroyWindow();
+    }
+  });
+
+  auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  body = _body.get();
+
+  {
+    auto quickSettings = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+    quickSettings->addClass("quick-settings");
+
+    {
+      auto grid = std::make_unique<FlowBox>();
+      grid->gap(8);
+      grid->columns(2);
+      grid->add(RamTile::create());
+      grid->add(CpuTile::create());
+      grid->add(NetworkTile::create());
+      grid->add(BluetoothTile::create());
+      grid->add(AudioTile::create());
+      grid->add(NightLightTile::create());
+      quickSettings->add(std::move(grid));
+    }
+    {
+      auto footer = std::make_unique<Box>();
+      footer->addClass("footer");
+      footer->gap(8);
+
+      auto power = std::make_unique<Button>(Button::Type::Icon, Button::None,
+                                            Button::Small);
+      power->setContent("power_settings_new");
+      power->onClick([]() {
+        std::string command = "poweroff";
+        run(command);
+      });
+      footer->add(std::move(power));
+
+      auto reboot = std::make_unique<Button>(Button::Type::Icon, Button::None,
+                                             Button::Small);
+      reboot->setContent("restart_alt");
+      reboot->onClick([]() {
+        std::string command = "reboot";
+        run(command);
+      });
+      footer->add(std::move(reboot));
+
+      footer->add(Uptime::create());
+
+      auto spacer = std::make_unique<Box>();
+      gtk_widget_set_hexpand((GtkWidget *)spacer->widget,
+                             true);  // Keep direct GTK call
+      footer->add(std::move(spacer));
+
+      footer->add(TimeDate::create());
+
+      quickSettings->add(std::move(footer));
+    }
+    {
+      quickSettings->add(mediaControls->create());
+    }
+
+    body->add(std::move(quickSettings));
+  }
+
+  window->add(std::move(_body));
+
+  window->visible();
   mediaControls->activate();
   NetworkTile::listen();
   BluetoothTile::listen();
@@ -478,6 +566,7 @@ void Panel::beforeExpandStart() {
   Uptime::update();
   TimeDate::update();
   update();
+
   updateTimer = g_timeout_add(
       1000,
       [](gpointer data) -> gboolean {
@@ -488,120 +577,47 @@ void Panel::beforeExpandStart() {
       this);
 }
 
-void Panel::beforeCollapseStart() {
+void Panel::destroyWindow() {
+  if (!window) return;
   if (updateTimer > 0) {
     g_source_remove(updateTimer);
     updateTimer = 0;
-  };
+  }
+
   mediaControls->deactivate();
   NetworkTile::destroy();
   BluetoothTile::destroy();
+
+  window.reset();
+  body = nullptr;
 }
 
-void Panel::onExpand() { body->size(expanded.width, -1); }
-
-void Panel::onCollapse() {
-  for (const auto &child : body->children) child->visible(false);
-  body->size(collapsed.width, collapsed.height);
-  window->removeClass("expanded");
-}
-
-void Panel::expand(bool value) {
-  if (value) {
-    beforeExpandStart();
-
-    int height;
-    gtk_widget_get_preferred_height(body->widget, nullptr, &height);
-    expanded.height = height;
-
-    transition->to(expanded, [this]() { onExpand(); });
-  } else {
-    beforeCollapseStart();
-    transition->to(collapsed, [this]() { onCollapse(); });
+Extension::Response Panel::onRequest(std::string_view command) {
+  if (command == "toggle") {
+    if (window) {
+      destroyWindow();
+      return {"Panel hidden", 0};
+    } else {
+      createWindow();
+      return {"Panel shown", 0};
+    }
   }
+  return {"Unknown command", 1};
 }
 
 Panel::Panel() {
-  window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
-  window->addClass("panel")
-      ->align(Align::End, Align::Top)
-      ->onHover([this](bool self) {
-        if (self) expand(true);
-      })
-      ->onHoverOut([this](bool self) {
-        if (self) expand(false);
-      })
-      ->visible();
+  cssManager->add(SHARE_DIR + "/extensions/panel/default.css");
+  if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
-  auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  body = _body.get();
-  body->addClass("body");
-  {
-    auto grid = std::make_unique<FlowBox>()
-                    ->gap(8)
-                    ->columns(2)
-                    ->add(RamTile::create())
-                    ->add(CpuTile::create())
-                    ->add(NetworkTile::create())
-                    ->add(BluetoothTile::create())
-                    ->add(AudioTile::create())
-                    ->add(NightLightTile::create());
-    body->add(std::move(grid));
-  }
-  {
-    auto footer = std::make_unique<Box>()->addClass("footer")->gap(8);
-
-    auto power = std::make_unique<Button>(Button::Type::Icon, Button::None,
-                                          Button::Small)
-                     ->setContent("power_settings_new")
-                     ->onClick([]() { run("poweroff"); });
-    footer->add(std::move(power));
-
-    auto reboot = std::make_unique<Button>(Button::Type::Icon, Button::None,
-                                           Button::Small)
-                      ->setContent("restart_alt")
-                      ->onClick([]() { run("reboot"); });
-    footer->add(std::move(reboot));
-
-    footer->add(Uptime::create());
-
-    auto spacer = std::make_unique<Box>();
-    gtk_widget_set_hexpand((GtkWidget *)spacer->widget,
-                           true);  // Keep direct GTK call
-    footer->add(std::move(spacer));
-
-    footer->add(TimeDate::create());
-
-    body->add(std::move(footer));
-  }
-  {
-    mediaControls = std::make_unique<MediaControls>();
-    body->add(mediaControls->create());
-  }
-
-  // body->add(std::move(Notifications::create())); // Keep commented
-
-  // Window doesn't support padding. So box container is used.
-  auto container =
-      std::make_unique<Box>()->addClass("container")->add(std::move(_body));
-  window->add(std::move(container));
-
-  onCollapse();
-  transition = std::make_unique<Transition>(body);
-  transition->duration(200);
+  mediaControls = std::make_unique<MediaControls>();
 
   Notifications::initialize();
 }
 
 Panel::~Panel() {
-  // Audio::initialize();
-  // Audio::onChange([]() {
-  //   AudioTile::update();
-  //   AudioDialog::update();
-  // });
-  // Audio::destroy();
+  destroyWindow();
   Notifications::destroy();
   mediaControls.reset();
-  transition.reset();
-  window.reset();
 }
+
+EXPORT_EXTENSION(Panel)

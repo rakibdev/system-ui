@@ -5,25 +5,17 @@
 #include "media-controls.h"
 
 class Panel : public Extension {
-  std::unique_ptr<Transition> transition;
   std::unique_ptr<MediaControls> mediaControls;
-
-  Transition::Frame collapsed = {24, 24};
-  Transition::Frame expanded = {340, -1};
+  std::unique_ptr<Window> window;
   Box* body;
   int updateTimer = 0;
 
-  void beforeExpandStart();
-  void beforeCollapseStart();
-  void onExpand();
-  void onCollapse();
-  void expand(bool value);
+  void createWindow();
+  void destroyWindow();
   void update();
 
  public:
-  // todo: Public for extension customization.
-  std::unique_ptr<Window> window;
-
+  Response onRequest(std::string_view command) override;
   Panel();
   ~Panel();
 };

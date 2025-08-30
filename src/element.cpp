@@ -185,7 +185,7 @@ Box *Box::prependChild(std::unique_ptr<Element> &&child) {
 
 Label::Label(const std::string &value) {
   widget = gtk_label_new(value.c_str());
-  gtk_label_set_ellipsize((GtkLabel *)widget, PANGO_ELLIPSIZE_END);
+  // gtk_label_set_ellipsize((GtkLabel *)widget, PANGO_ELLIPSIZE_END);
 }
 
 Label *Label::set(const std::string &value) {
@@ -208,7 +208,8 @@ Icon *Icon::set(const std::string &name) {
 Icon *Icon::setImage(const std::string &path) {
   GtkStyleContext *context = gtk_widget_get_style_context(widget);
   if (!gtk_style_context_has_class(context, "image")) addClass("image");
-  if (style) style->css("* { background-image: url(\"" + path + "\"); }");
+  if (!style) style = std::make_unique<Style>(widget);
+  style->css("* { background-image: url(\"" + path + "\"); }");
   return this;
 }
 

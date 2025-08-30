@@ -1,0 +1,84 @@
+.quick-settings {
+  border-radius: 24px;
+  color: @foreground;
+  background-color: @secondary;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+
+.quick-settings .tile {
+  padding: 16px;
+}
+
+.quick-settings .tile .title {
+  font-weight: bold;
+}
+
+.quick-settings .tile .description {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.quick-settings .footer {
+  margin-top: 8px;
+}
+
+.quick-settings .player {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: 24px;
+  background-color: @card;
+}
+
+.quick-settings .player .thumbnail {
+  min-width: 64px;
+  min-height: 64px;
+  margin-left: 16px;
+  border-radius: 8px;
+  background-size: contain;
+  background-position: center;
+}
+
+.quick-settings .player .thumbnail label {
+  font-size: 40px;
+}
+
+.quick-settings .player .artist {
+  margin-top: 8px;
+}
+
+.quick-settings .player trough {
+  min-height: 24px;
+  margin-top: 8px;
+}
+
+.notification-item {
+  background-color: @secondary;
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.notification-item .icon {
+  font-size: 20px;
+  color: @primary;
+}
+
+.notification-item .content {
+  margin-left: 8px;
+}
+
+.notification-item .title {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.notification-item .description {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.notification-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}

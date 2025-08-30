@@ -1,5 +1,0 @@
-{
-  "name": "panel",
-  "main": "../build/panel.so",
-  "style": "app.css"
-}

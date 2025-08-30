@@ -14,22 +14,6 @@
       "command": "ui daemon stop &> /dev/null; ui daemon start",
       "presentation": { "clear": true, "reveal": "silent" },
       "dependsOn": ["Build"]
-    },
-    {
-      "label": "Generate Compile Commands",
-      "type": "shell",
-      "group": "build",
-      "command": "xmake project --kind=compile_commands ${workspaceFolder}"
-    },
-    {
-      "label": "Generate Wayland Protocol Headers",
-      "type": "shell",
-      "group": "build",
-      "command": "wayland-scanner client-header ${basename}.xml ${basename}-client.h; wayland-scanner private-code ${basename}.xml ${basename}-client.c",
-      "options": {
-        "cwd": "${workspaceFolder}/protocols",
-        "env": { "basename": "wlr-foreign-toplevel-management-unstable-v1" }
-      }
     }
   ]
 }

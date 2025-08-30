@@ -4,7 +4,7 @@ window {
   background-color: transparent;
 }
 
-.body-small {
+.text-sm {
   font-size: 14px;
   color: @foreground;
 }

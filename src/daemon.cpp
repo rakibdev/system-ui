@@ -54,12 +54,12 @@ void onRequest(const std::string& command, int client) {
         for (auto& [key, value] : manager.extensions) {
           if (value.get() == extension) {
             manager.unload(key);
-            sendResponse("Unloaded", 0);
+            sendResponse("Extension unloaded", 0);
             return;
           }
         }
       }
-      sendResponse("Extension not found", 1);
+      sendResponse("Extension not running", 1);
     }
     return;
 
@@ -87,10 +87,12 @@ void onRequest(const std::string& command, int client) {
           }
           auto response = extension->onRequest(extensionArgs.str());
           sendResponse(response.content, response.status);
-        }
-      } else {
+          return;
+        } else
+          sendResponse("Extension running", 0);
+      } else
         sendResponse("Extension not found", 1);
-      }
+
       return;
     }
   }
@@ -204,8 +206,7 @@ void initialize() {
   gtk_init(nullptr, nullptr);
 
   cssManager->add(SHARE_DIR + "/src/default.css");
-  std::string userCss = CONFIG_DIR + "/src/system-ui.css";
-  if (std::filesystem::exists(userCss)) cssManager->add(userCss, 100);
+  if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
   gtk_main();
 }

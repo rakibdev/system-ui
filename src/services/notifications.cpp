@@ -63,15 +63,16 @@ void parseHints(GVariantIter *hints, Notification &notification) {
   }
 }
 
-void NotificationManager::handleNotify(GVariant *parameters,
-                                       GDBusMethodInvocation *invocation) {
+void NotificationManager::onNotify(GVariant *parameters,
+                                   GDBusMethodInvocation *invocation) {
   Notification notification = {};
   char *appName, *summery, *body;
   uint index;
   char **actions;
   GVariantIter *hints;
+  int expireTimeout;
   g_variant_get(parameters, "(&su&s&s&s^a&sa{sv}i)", &appName, &index, nullptr,
-                &summery, &body, &actions, &hints, &notification.duration);
+                &summery, &body, &actions, &hints, &expireTimeout);
 
   for (int index = 0; actions[index]; index += 2)
     notification.actions.push_back({actions[index], actions[index + 1]});
@@ -83,16 +84,28 @@ void NotificationManager::handleNotify(GVariant *parameters,
   notification.label = summery;
   notification.description = body;
 
-  if (index < list.size())
-    list[index] = notification;
-  else {
+  if (expireTimeout > 0)
+    notification.duration = expireTimeout;
+  else
+    notification.duration = 2500;
+
+  // D-Bus index starts from 1
+  if (index > 0 && index <= list.size()) {
+    auto replaceIndex = index - 1;
+    if (list[replaceIndex].timer > 0) g_source_remove(list[replaceIndex].timer);
+    list[replaceIndex] = notification;
+    index = replaceIndex;
+  } else {
     list.emplace_back(notification);
     index = list.size() - 1;
   }
+
   auto id = index + 1;
   g_dbus_method_invocation_return_value(invocation, g_variant_new("(u)", id));
 
-  remove(index, RemoveReason::USER_DISMISSED);
+  if (onChange) onChange();
+
+  startAutoHide(index);
 }
 
 void methods(GDBusConnection *connection, const gchar *sender,
@@ -102,7 +115,7 @@ void methods(GDBusConnection *connection, const gchar *sender,
   NotificationManager *_this = static_cast<NotificationManager *>(data);
   std::string methodName(name);
   if (methodName == "Notify")
-    _this->handleNotify(parameters, invocation);
+    _this->onNotify(parameters, invocation);
 
   else if (methodName == "GetCapabilities") {
     // required by chromium
@@ -156,13 +169,19 @@ void busNameLost(GDBusConnection *connection, const gchar *name,
   Log::info(std::string(name));
 }
 
-NotificationManager::NotificationManager() {
+NotificationManager::NotificationManager() : connection(nullptr), ownerId(0) {
   ownerId =
       g_bus_own_name(G_BUS_TYPE_SESSION, DBUS_NAME, G_BUS_NAME_OWNER_FLAGS_NONE,
                      busAcquired, busNameAcquired, busNameLost, this, nullptr);
 }
 
-NotificationManager::~NotificationManager() { g_bus_unown_name(ownerId); }
+NotificationManager::~NotificationManager() {
+  if (ownerId > 0) {
+    g_bus_unown_name(ownerId);
+    ownerId = 0;
+  }
+  connection = nullptr;
+}
 
 void NotificationManager::invoke(uint index, const std::string &action) {
   g_dbus_connection_emit_signal(
@@ -173,14 +192,59 @@ void NotificationManager::invoke(uint index, const std::string &action) {
 void NotificationManager::remove(uint index, RemoveReason reason) {
   // todo: cleanup connection = nullptr
   // todo: check if notification exist or not. because close can be triggered by anyone and any id.
+  if (index >= list.size()) return;
+
+  if (list[index].timer > 0) {
+    g_source_remove(list[index].timer);
+    list[index].timer = 0;
+  }
+
   auto id = index + 1;
   list.erase(list.begin() + index);
   g_dbus_connection_emit_signal(connection, nullptr, DBUS_PATH, DBUS_NAME,
                                 "NotificationClosed",
                                 g_variant_new("(uu)", id, 2), nullptr);
+
+  if (onChange) onChange();
 }
 
 void NotificationManager::clear() {
   for (uint index = 0; index < list.size(); index++)
     remove(index, RemoveReason::USER_DISMISSED);
+}
+
+void NotificationManager::pause(uint index) {
+  if (index >= list.size()) return;
+
+  if (list[index].timer > 0) {
+    g_source_remove(list[index].timer);
+    list[index].timer = 0;
+  }
+}
+
+void NotificationManager::startAutoHide(uint index) {
+  if (index >= list.size()) return;
+
+  if (list[index].timer > 0) {
+    g_source_remove(list[index].timer);
+  }
+
+  if (list[index].duration > 0) {
+    list[index].timer = g_timeout_add(
+        list[index].duration,
+        [](gpointer data) -> gboolean {
+          auto *info =
+              static_cast<std::pair<NotificationManager *, uint> *>(data);
+          auto *manager = info->first;
+          uint notificationIndex = info->second;
+
+          if (notificationIndex < manager->list.size()) {
+            manager->list[notificationIndex].timer = 0;
+            manager->remove(notificationIndex, RemoveReason::EXPIRED);
+          }
+          delete info;
+          return G_SOURCE_REMOVE;
+        },
+        new std::pair<NotificationManager *, uint>(this, index));
+  }
 }

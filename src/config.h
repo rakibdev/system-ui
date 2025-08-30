@@ -17,6 +17,7 @@ const std::string SOCKET_FILE = TEMP + "/daemon.sock";
 const std::string LOG_FILE = TEMP + "/daemon.log";
 const std::string CONFIG_DIR = HOME + "/.config/system-ui";
 const std::string CONFIG_FILE = CONFIG_DIR + "/system-ui.json";
+const std::string USER_CSS = CONFIG_DIR + "/system-ui.css";
 
 struct Config {
   bool darkMode = true;
