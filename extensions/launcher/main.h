@@ -2,6 +2,7 @@
 
 #include <glaze/glaze.hpp>
 #include <map>
+#include <memory>
 
 #include "../../src/element.h"
 #include "../../src/extension.h"
@@ -39,21 +40,27 @@ struct AppCache {
   std::string updatedAt;
 };
 
+// Forward declaration
+class DragDrop;
+
 class Launcher : public Extension {
   std::unique_ptr<Window> window;
   std::unique_ptr<Menu> menu;
+  std::unique_ptr<DragDrop> dragDrop;
   Input* search;
   Box* searchPlaceholder;
-  FlowBox* pinGrid;
-  FlowBox* grid;
+
   void launch(const std::string& command);
   void openContextMenu(App& app, GdkEventButton* event);
-  void update(bool sort = true);
   std::unique_ptr<FlowBox> createGrid();
   std::unique_ptr<Box> createSearch();
   void unload();
 
  public:
+  FlowBox* pinGrid;
+  FlowBox* grid;
+  void update(bool sort = true);
+
   Launcher();
   ~Launcher();
 };

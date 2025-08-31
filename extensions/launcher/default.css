@@ -38,7 +38,7 @@
 
 .launcher .app .icon.adaptive {
   background-color: #fff;
-  background-size: 36px;
+  background-size: 38px;
 }
 
 .launcher .app .icon.circular {
@@ -61,4 +61,18 @@
 
 .launcher .placeholder .icon label {
   font-size: 40px;
+}
+
+.launcher .grid.drag-over {
+  border: 2px solid @primary;
+  border-radius: 12px;
+}
+
+.launcher .app.dragging {
+  opacity: 0.6;
+}
+
+.drag-icon {
+  background-size: 38px;
+  background-repeat: no-repeat;
 }

@@ -16,6 +16,7 @@
 #include "../../src/utils/image.h"
 #include "../../src/utils/run.h"
 #include "../../src/utils/storage.h"
+#include "drag-drop.h"
 
 std::vector<App> apps;
 StorageManager<LauncherConfig> config(CONFIG_DIR + "/launcher.json");
@@ -172,14 +173,61 @@ bool has(std::string_view file) {
                    std::filesystem::path(file).filename()) != pinned.end();
 }
 
-void toggle(std::string_view file) {
+void toggle(std::string_view file, bool force = false) {
   auto& pinned = config.get().pinnedApps;
   std::string filename = std::filesystem::path(file).filename();
   auto it = std::find(pinned.begin(), pinned.end(), filename);
-  if (it == pinned.end())
+
+  if (force) {
+    // Force pin: add if not present
+    if (it == pinned.end()) {
+      pinned.push_back(filename);
+      config.save();
+    }
+  } else if (it == pinned.end()) {
+    // Pin: add to beginning
     pinned.insert(pinned.begin(), filename);
-  else
+    config.save();
+  } else {
+    // Unpin: remove from list
     pinned.erase(it);
+    config.save();
+  }
+}
+
+void insertAt(const std::string& filename, int index) {
+  auto& pinned = config.get().pinnedApps;
+
+  // Don't add if already exists
+  auto it = std::find(pinned.begin(), pinned.end(), filename);
+  if (it != pinned.end()) return;
+
+  if (index >= pinned.size()) {
+    pinned.push_back(filename);
+  } else {
+    pinned.insert(pinned.begin() + index, filename);
+  }
+
+  config.save();
+}
+
+void reorder(const std::string& filename, int newIndex) {
+  auto& pinned = config.get().pinnedApps;
+
+  auto it = std::find(pinned.begin(), pinned.end(), filename);
+  if (it == pinned.end()) return;
+
+  int currentIndex = std::distance(pinned.begin(), it);
+  if (currentIndex == newIndex) return;
+
+  pinned.erase(it);
+
+  if (newIndex >= pinned.size()) {
+    pinned.push_back(filename);
+  } else {
+    pinned.insert(pinned.begin() + newIndex, filename);
+  }
+
   config.save();
 }
 }
@@ -376,11 +424,15 @@ void Launcher::update(bool sort) {
     });
     eventBox->add(std::move(box));
 
+    EventBox* _eventBox = eventBox.get();
+
     FlowBoxChild* child = Pinned::has(app.file)
                               ? pinGrid->add(std::move(eventBox))
                               : grid->add(std::move(eventBox));
     child->addClass("app");
     app.element = child;
+
+    dragDrop->setupDragAndDrop(_eventBox, app);
   }
 
   pinGrid->visible(!pinGrid->children.empty());
@@ -445,6 +497,8 @@ Launcher::~Launcher() {
 }
 
 Launcher::Launcher() {
+  dragDrop = std::make_unique<DragDrop>(this);
+
   auto& cacheData = cache.get();
   if (!cacheData.apps.empty())
     apps.assign(cacheData.apps.begin(), cacheData.apps.end());
@@ -457,8 +511,6 @@ Launcher::Launcher() {
           cacheData.updatedAt) {
     refreshApps(lastModified);
   }
-
-  refreshApps(lastModified);
 
   Pinned::syncPinned(apps);
 
@@ -506,6 +558,8 @@ Launcher::Launcher() {
     body->add(std::move(scrollable));
   }
   window->add(std::move(body));
+
+  dragDrop->setupDropTargets(pinGrid, grid);
 
   update();
   search->focus();
