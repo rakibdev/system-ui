@@ -2,7 +2,7 @@ includes("../../xmake.utils.lua")
 
 setup()
 
-add_requires("cairo", "libwebp", "libjpeg", {system = true})
+add_requires("cairo", "libwebp", "libjpeg", "librsvg-2.0", {system = true})
 
 local materialColorUtilitiesDir = "../../libs/material-color-utilities"
 target("material-color-utilities")
@@ -34,4 +34,4 @@ target("theme")
     
     add_deps("material-color-utilities")
     
-    add_packages("cairo", "libwebp", "libjpeg")
+    add_packages("cairo", "libwebp", "libjpeg", "librsvg-2.0")

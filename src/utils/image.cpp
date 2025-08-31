@@ -1,7 +1,8 @@
-#include "image-loader.h"
+#include "image.h"
 
 #include <cairo/cairo.h>
 #include <jpeglib.h>
+#include <librsvg/rsvg.h>
 #include <setjmp.h>
 #include <webp/decode.h>
 
@@ -124,4 +125,50 @@ cairo_surface_t* createSurfaceFromJpeg(const std::string& path) {
 
 cairo_surface_t* createSurfaceFromPng(const std::string& path) {
   return cairo_image_surface_create_from_png(path.c_str());
+}
+
+cairo_surface_t* createSurfaceFromSvg(const std::string& path, int width,
+                                      int height) {
+  GError* error = nullptr;
+  RsvgHandle* handle = rsvg_handle_new_from_file(path.c_str(), &error);
+
+  if (!handle) {
+    if (error) {
+      std::cerr << "Unable to load SVG: " << error->message << std::endl;
+      g_error_free(error);
+    }
+    return nullptr;
+  }
+
+  cairo_surface_t* surface =
+      cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+  if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
+    g_object_unref(handle);
+    return nullptr;
+  }
+
+  cairo_t* cr = cairo_create(surface);
+  if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+    g_object_unref(handle);
+    return nullptr;
+  }
+
+  RsvgRectangle viewport = {0, 0, (double)width, (double)height};
+  GError* render_error = nullptr;
+  if (!rsvg_handle_render_document(handle, cr, &viewport, &render_error)) {
+    if (render_error) {
+      g_error_free(render_error);
+    }
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+    g_object_unref(handle);
+    return nullptr;
+  }
+
+  cairo_destroy(cr);
+  g_object_unref(handle);
+
+  return surface;
 }

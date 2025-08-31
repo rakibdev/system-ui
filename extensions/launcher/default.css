@@ -2,7 +2,7 @@
   padding: 4px;
   border-radius: 24px;
   color: @foreground;
-  background-color: @background;
+  background-color: @secondary;
 }
 
 .launcher .search {
@@ -31,11 +31,18 @@
 }
 
 .launcher .app .icon {
-  min-width: 44px;
-  min-height: 44px;
   border-radius: 50%;
-  background-size: 30px;
-  background-color: @card;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.launcher .app .icon.adaptive {
+  background-color: #fff;
+  background-size: 36px;
+}
+
+.launcher .app .icon.circular {
+  background-size: 48px;
 }
 
 .launcher .app .name {

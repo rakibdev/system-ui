@@ -11,9 +11,9 @@
 #include "../../libs/material-color-utilities/cpp/quantize/celebi.h"
 #include "../../libs/material-color-utilities/cpp/score/score.h"
 #include "../../src/utils/argparser.h"
+#include "../../src/utils/image.h"
 #include "../../src/utils/log.h"
 #include "color.h"
-#include "image-loader.h"
 #include "material.h"
 
 const std::string defaultColor = MaterialColors::primary;
@@ -87,6 +87,8 @@ std::string colorFromImage(const std::string& imagePath) {
     surface = createSurfaceFromJpeg(imagePath);
   else if (extension == ".png")
     surface = createSurfaceFromPng(imagePath);
+  else if (extension == ".svg")
+    surface = createSurfaceFromSvg(imagePath);
   else {
     std::cerr << "Unsupported image format: " << extension << "\n";
     return "";

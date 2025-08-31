@@ -1,12 +1,18 @@
 #include "main.h"
 
+#include <cairo/cairo.h>
+
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string_view>
+#include <vector>
 
 #include "../../src/config.h"
 #include "../../src/utils/css.h"
+#include "../../src/utils/image.h"
 #include "../../src/utils/run.h"
 #include "../../src/utils/storage.h"
 
@@ -15,6 +21,127 @@ StorageManager<LauncherConfig> config(CONFIG_DIR + "/launcher.json");
 
 const std::string CACHE_DIR = HOME + "/.cache/system-ui";
 StorageManager<AppCache> cache(CACHE_DIR + "/launcher.json");
+
+bool isIconCircular(const std::string& iconPath) {
+  if (iconPath.empty() || !std::filesystem::exists(iconPath)) return false;
+
+  cairo_surface_t* surface = nullptr;
+
+  // Handle different image formats
+  std::string extension = std::filesystem::path(iconPath).extension().string();
+  std::transform(extension.begin(), extension.end(), extension.begin(),
+                 ::tolower);
+
+  if (extension == ".png") {
+    surface = createSurfaceFromPng(iconPath);
+  } else if (extension == ".svg") {
+    surface = createSurfaceFromSvg(iconPath, 48, 48);
+  } else if (extension == ".webp") {
+    surface = createSurfaceFromWebP(iconPath);
+  } else if (extension == ".jpg" || extension == ".jpeg") {
+    surface = createSurfaceFromJpeg(iconPath);
+  } else {
+    std::cerr << "Unsupported image format: " << iconPath << std::endl;
+    return false;
+  }
+  if (!surface) {
+    std::cerr << "Unable to create surface for: " << iconPath << std::endl;
+    return false;
+  }
+
+  cairo_status_t status = cairo_surface_status(surface);
+  if (status != CAIRO_STATUS_SUCCESS) {
+    cairo_surface_destroy(surface);
+    return false;
+  }
+
+  int width = cairo_image_surface_get_width(surface);
+  int height = cairo_image_surface_get_height(surface);
+
+  if (width < 16 || height < 16) {
+    cairo_surface_destroy(surface);
+    return false;
+  }
+
+  uint8_t* data = cairo_image_surface_get_data(surface);
+  int stride = cairo_image_surface_get_stride(surface);
+
+  // Use the smaller dimension for radius calculation
+  double centerX = width / 2.0;
+  double centerY = height / 2.0;
+  double radius = std::min(width, height) / 2.0 - 2;
+
+  int edgePixels = 0;
+  int circularPixels = 0;
+  int totalTransparentOutside = 0;
+  int totalOpaqueInside = 0;
+  int samplesOutside = 0;
+  int samplesInside = 0;
+
+  for (int y = 0; y < height; y += 1) {
+    for (int x = 0; x < width; x += 1) {
+      double dx = x - centerX;
+      double dy = y - centerY;
+      double distance = std::sqrt(dx * dx + dy * dy);
+
+      uint8_t* pixel = data + y * stride + x * 4;
+      uint8_t alpha = pixel[3];
+
+      // Check edge region for circular pattern
+      bool isNearEdge = distance >= radius - 3 && distance <= radius + 3;
+
+      if (isNearEdge) {
+        edgePixels++;
+        if (distance <= radius && alpha > 128) {
+          circularPixels++;
+        } else if (distance > radius && alpha <= 128) {
+          circularPixels++;
+        }
+      }
+
+      // Additional checks: inside should be mostly opaque, outside should be mostly transparent
+      if (distance < radius - 5) {
+        samplesInside++;
+        if (alpha > 128) totalOpaqueInside++;
+      } else if (distance > radius + 5) {
+        samplesOutside++;
+        if (alpha <= 128) totalTransparentOutside++;
+      }
+    }
+  }
+
+  cairo_surface_destroy(surface);
+
+  if (edgePixels == 0) return false;
+
+  double circularRatio = static_cast<double>(circularPixels) / edgePixels;
+  double insideRatio =
+      samplesInside > 0 ? static_cast<double>(totalOpaqueInside) / samplesInside
+                        : 0;
+  double outsideRatio =
+      samplesOutside > 0
+          ? static_cast<double>(totalTransparentOutside) / samplesOutside
+          : 0;
+
+  bool isCircular =
+      circularRatio > 0.7 && insideRatio > 0.6 && outsideRatio > 0.85;
+
+  return isCircular;
+}
+
+std::string resolveIconPath(const std::string& iconName) {
+  GtkIconInfo* info =
+      gtk_icon_theme_lookup_icon(gtk_icon_theme_get_default(), iconName.c_str(),
+                                 48, GTK_ICON_LOOKUP_USE_BUILTIN);
+
+  if (!info) return "";
+
+  const char* filename = gtk_icon_info_get_filename(info);
+  std::string result = filename ? std::string(filename) : "";
+
+  g_object_unref(info);
+  return result;
+}
 
 constexpr std::string_view APPLICATIONS = "/usr/share/applications";
 const std::string USER_APPLICATIONS = HOME + "/.local/share/applications";
@@ -103,7 +230,11 @@ void scanApps(std::vector<App>& apps, std::string_view directory) {
         else
           app.actions[actionId].exec = exec;
       } else if (line.starts_with("Icon=")) {
-        if (actionId.empty()) app.icon = line.substr(5);
+        if (actionId.empty()) {
+          app.icon = line.substr(5);
+          if (!app.icon.contains('/')) app.icon = resolveIconPath(app.icon);
+          app.isCircular = isIconCircular(app.icon);
+        }
       } else if (line.starts_with("NoDisplay=true")) {
         apps.erase(appIt);
         break;
@@ -164,6 +295,8 @@ void Launcher::openContextMenu(App& app, GdkEventButton* event) {
       menu->add(std::move(item));
     }
   }
+
+  app.element->removeState(GTK_STATE_FLAG_PRELIGHT);
   menu->visible()->focus();
 }
 
@@ -202,13 +335,22 @@ void Launcher::update(bool sort) {
 
     auto icon = std::make_unique<Icon>();
     icon->setImage(app.icon);
+
+    if (app.isCircular)
+      icon->addClass("circular");
+    else
+      icon->addClass("adaptive");
+
     // if (icon->style)
     //   icon->style->css("@define-color primary " + app.color + ";");
     gtk_widget_set_halign(
         icon->widget, GTK_ALIGN_CENTER);  // Keep direct GTK call for alignment
 
     auto label = std::make_unique<Label>(app.label);
-    label->addClass("name body-small");
+    label->addClass("name text-sm");
+
+    // Ellipsis to maintain 3-column layout
+    gtk_label_set_ellipsize(GTK_LABEL(label->widget), PANGO_ELLIPSIZE_END);
 
     auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
     box->add(std::move(icon));
@@ -302,8 +444,11 @@ Launcher::Launcher() {
                std::filesystem::last_write_time(USER_APPLICATIONS));
   if (cacheData.updatedAt.empty() ||
       std::to_string(lastModified.time_since_epoch().count()) >
-          cacheData.updatedAt)
+          cacheData.updatedAt) {
     refreshApps(lastModified);
+  }
+
+  refreshApps(lastModified);
 
   Pinned::syncPinned(apps);
 
@@ -314,10 +459,10 @@ Launcher::Launcher() {
                                     GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
 #endif
   window->addClass("launcher");
+  window->size(480, 500);
 
   cssManager->add(SHARE_DIR + "/extensions/launcher/default.css");
-  std::string userCss = CONFIG_DIR + "/launcher.css";
-  if (std::filesystem::exists(userCss)) cssManager->add(userCss, 100);
+  if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
   window->visible();
   window->onKeyDown([this](GdkEventKey* event) {
@@ -328,7 +473,6 @@ Launcher::Launcher() {
 
   auto body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
   body->addClass("body");
-  body->size(400, 500);
   body->add(createSearch());
   {
     auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);

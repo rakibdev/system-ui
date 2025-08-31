@@ -2,7 +2,7 @@ includes("xmake.utils.lua")
 
 setup()
 
-add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", {system = true})
+add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0", {system = true})
 
 set_installdir("/usr/")
 local pcFile = "/lib/pkgconfig/system-ui.pc"
@@ -42,12 +42,13 @@ target("system-ui")
     -- todo: remove
     remove_files("src/services/audio.cpp")
 
-    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze")
+    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0")
     
     add_cxxflags("-fPIC")
 
     add_installfiles("src/*.h", { prefixdir = headerDir })
     add_installfiles("src/services/*.h", {prefixdir = headerDir .. "/services"})
+    add_installfiles("src/utils/*.h", {prefixdir = headerDir .. "/utils"})
     add_installfiles("src/default.css", { prefixdir = shareDir })
     add_installfiles("extensions", { prefixdir = shareDir .. "/extensions" })
     after_install(function (target)
