@@ -3,6 +3,7 @@
 #include "extension.h"
 
 namespace Daemon {
+extern ExtensionManager manager;
 int request(const std::string& content);
 void initialize();
 }

@@ -51,6 +51,7 @@ class Launcher : public Extension {
   void update(bool sort = true);
   std::unique_ptr<FlowBox> createGrid();
   std::unique_ptr<Box> createSearch();
+  void unload();
 
  public:
   Launcher();

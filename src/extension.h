@@ -4,6 +4,8 @@
 #include <memory>
 #include <string_view>
 
+class ExtensionManager;
+
 class Extension {
  public:
   struct Response {

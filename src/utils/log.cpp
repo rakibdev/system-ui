@@ -1,7 +1,9 @@
 #include "log.h"
 
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 
 namespace Log {
@@ -17,15 +19,20 @@ std::string getTime() {
 
 void write(std::string_view type, std::string_view color,
            std::string_view message, const std::source_location& location) {
-  std::string filename =
-      std::filesystem::path(location.file_name()).filename().string() + ": ";
   if (saveInFile.empty()) {
-    std::cout << color << type << ": ";
-    if (type != "info") std::cout << gray << filename;
-    std::cout << colorOff << message << std::endl;
+    auto& output = (type == "error" || type == "warn") ? std::cerr : std::cout;
+    output << color << type << ": ";
+    if (type != "info") {
+      output << gray << std::filesystem::path(location.file_name()).filename()
+             << ": ";
+    }
+    output << colorOff << message << std::endl;
   } else {
     std::ofstream file(saveInFile, std::ios::app);
-    file << getTime() + " " + type + ": " + filename + message << std::endl;
+    file << getTime() << ' ' << type << ": ";
+    if (type != "info")
+      file << std::filesystem::path(location.file_name()).filename() << ": ";
+    file << message << std::endl;
   }
 }
 
@@ -44,27 +51,25 @@ void warn(std::string_view message, const std::source_location& location) {
 void table(Table value) {
   std::vector<int> widths;
   for (const auto& row : value) {
-    for (int column = 0; column < row.size(); column++) {
+    const auto rowSize = static_cast<int>(row.size());
+    for (int column = 0; column < rowSize; column++) {
+      const auto colWidth = static_cast<int>(row[column].length());
       if (widths.size() <= column)
-        widths.push_back(row[column].length());
+        widths.push_back(colWidth);
       else
-        widths[column] =
-            std::max(widths[column], static_cast<int>(row[column].length()));
+        widths[column] = std::max(widths[column], colWidth);
     }
   }
 
   constexpr uint8_t gap = 2;
+  constexpr const char* colors[] = {blue, pink, lightBlue};
 
   for (const auto& row : value) {
-    for (int column = 0; column < row.size(); column++) {
+    const auto rowSize = static_cast<int>(row.size());
+    for (int column = 0; column < rowSize; column++) {
       std::cout << std::left;
-      if (column == 0) {
-        std::cout << blue;
-        std::cout << "  ";
-      } else if (column == 1)
-        std::cout << pink;
-      else if (column == 2)
-        std::cout << lightBlue;
+      if (column == 0) std::cout << "  ";
+      if (column < 3) std::cout << colors[column];
       std::cout << std::setw(widths[column] + gap) << row[column] << colorOff;
     }
     std::cout << std::endl;

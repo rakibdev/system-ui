@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "../../src/config.h"
+#include "../../src/daemon.h"
 #include "../../src/utils/css.h"
 #include "../../src/utils/image.h"
 #include "../../src/utils/run.h"
@@ -255,8 +256,17 @@ void refreshApps(std::filesystem::file_time_type lastModified) {
   cache.save();
 }
 
+void Launcher::unload() {
+  for (auto& [key, extension] : Daemon::manager.extensions) {
+    if (extension.get() == this) {
+      Daemon::manager.unload(key);
+      return;
+    }
+  }
+}
+
 void Launcher::launch(const std::string& command) {
-  if (window) window->visible(false);
+  unload();
   runNewProcess(command);
 }
 
@@ -459,7 +469,7 @@ Launcher::Launcher() {
                                     GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
 #endif
   window->addClass("launcher");
-  window->size(480, 500);
+  window->size(440, 540);
 
   cssManager->add(SHARE_DIR + "/extensions/launcher/default.css");
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
@@ -467,7 +477,7 @@ Launcher::Launcher() {
   window->visible();
   window->onKeyDown([this](GdkEventKey* event) {
     if (event->keyval == GDK_KEY_Escape) {
-      if (window) window->visible(false);
+      unload();
     }
   });
 

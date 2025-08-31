@@ -23,12 +23,12 @@ void ExtensionManager::add(const std::string& id,
 void ExtensionManager::load(const std::string& filePath, std::string& error) {
   std::string path = File::resolve(filePath);
 
-  std::filesystem::path file(path);
-  if (!std::filesystem::exists(file)) {
+  if (!std::filesystem::exists(path)) {
     error = "Not found: " + path;
     return;
   }
 
+  // didn't add hot reload because handle persists even after dlclose until system-ui is closed
   auto handle = dlopen(path.c_str(), RTLD_NOW);
   if (!handle) {
     error = "dlopen: " + std::string(dlerror());
@@ -49,11 +49,9 @@ void ExtensionManager::load(const std::string& filePath, std::string& error) {
 
 void ExtensionManager::unload(const std::string& id) {
   void* handle = extensions[id]->handle;
-
   // Don't dlclose before erasing (triggers destructor).
   extensions.erase(id);
-  if (dlclose(handle) != 0)
-    Log::info("dlclose " + id + " failed. " + dlerror());
+  if (dlclose(handle) != 0) Log::info("dlclose failed: " + id);
 }
 
 ExtensionManager::~ExtensionManager() {
