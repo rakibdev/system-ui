@@ -1,6 +1,5 @@
 #include "material.h"
 
-#include "../../libs/material-color-utilities/cpp/cam/hct.h"
 #include "color.h"
 
 using material_color_utilities::Hct;

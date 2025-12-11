@@ -3,9 +3,9 @@
 #include <map>
 #include <string>
 
-namespace material_color_utilities {
-class Hct;
-}
+#include "../../libs/material-color-utilities/cpp/cam/hct.h"
+
+using ColorMap = std::map<std::string, std::string>;
 
 namespace MaterialColors {
 
@@ -14,8 +14,6 @@ extern const std::string error;
 
 double getNeutralChroma(double hue);
 bool isBlue(double hue);
-
-using ColorMap = std::map<std::string, std::string>;
 
 std::string hctToHex(double hue, double chroma, double tone);
 material_color_utilities::Hct hexToHct(const std::string& hex);

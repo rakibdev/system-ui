@@ -1,0 +1,17 @@
+pkgname=system-ui-theme
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Material 3 theme generator"
+arch=('x86_64')
+license=('MPL-2.0')
+depends=('cairo' 'libwebp' 'libjpeg-turbo')
+makedepends=('xmake')
+
+build() {
+    xmake config --mode=release
+    xmake build
+}
+
+package() {
+    install -Dm755 build/theme "$pkgdir/usr/bin/theme"
+}

@@ -172,3 +172,56 @@ cairo_surface_t* createSurfaceFromSvg(const std::string& path, int width,
 
   return surface;
 }
+
+cairo_surface_t* resizeImage(cairo_surface_t* source, uint16_t width,
+                             uint16_t height, uint16_t newWidth) {
+  float newHeight = ((float)height / width) * newWidth;
+  cairo_surface_t* surface =
+      cairo_image_surface_create(CAIRO_FORMAT_ARGB32, newWidth, newHeight);
+  cairo_t* cr = cairo_create(surface);
+  cairo_scale(cr, (float)newWidth / width, newHeight / height);
+  cairo_set_source_surface(cr, source, 0, 0);
+  cairo_paint(cr);
+  cairo_destroy(cr);
+  return surface;
+}
+
+bool isDarkBackground(cairo_surface_t* surface) {
+  int width = cairo_image_surface_get_width(surface);
+  int height = cairo_image_surface_get_height(surface);
+  int stride = cairo_image_surface_get_stride(surface);
+  unsigned char* pixels = cairo_image_surface_get_data(surface);
+
+  // Where controls are typically displayed
+  std::vector<std::pair<int, int>> samplePoints = {
+      {width / 2, height / 2},      // Center
+      {width * 3 / 4, height / 4},  // Top-right quadrant
+      {width * 7 / 8, height / 8},  // Top-right corner area
+      {width * 3 / 4, height / 2},  // Right-center
+      {width / 2, height / 4},      // Top-center
+  };
+
+  float totalLightness = 0;
+  int validSamples = 0;
+
+  for (const auto& point : samplePoints) {
+    int x = point.first;
+    int y = point.second;
+
+    // Ensure we don't go out of bounds
+    if (x >= 0 && x < width && y >= 0 && y < height) {
+      unsigned char* pixel = pixels + y * stride + x * 4;
+      int r = pixel[2];
+      int g = pixel[1];
+      int b = pixel[0];
+      float lightness = 0.21 * r + 0.72 * g + 0.07 * b;
+      totalLightness += lightness;
+      validSamples++;
+    }
+  }
+
+  if (validSamples == 0) return true;
+
+  float averageLightness = totalLightness / validSamples;
+  return averageLightness < 140;
+}
