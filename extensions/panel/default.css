@@ -1,9 +1,8 @@
 .quick-settings {
   border-radius: 24px;
   color: @foreground;
-  background-color: @secondary;
+  background-color: @surface;
   padding: 16px;
-  margin-bottom: 8px;
 }
 
 .quick-settings .tile {
@@ -26,37 +25,38 @@
 .quick-settings .player {
   margin-top: 8px;
   padding: 16px;
-  border-radius: 24px;
-  background-color: @card;
-}
-
-.quick-settings .player .thumbnail {
-  min-width: 64px;
-  min-height: 64px;
-  margin-left: 16px;
-  border-radius: 8px;
-  background-size: contain;
+  border-radius: 16px;
+  background-color: @surface-variant;
+  background-size: cover;
   background-position: center;
 }
 
-.quick-settings .player .thumbnail label {
-  font-size: 40px;
+.quick-settings .player .title {
+  font-weight: bold;
+  margin-right: 8px;
 }
 
-.quick-settings .player .artist {
-  margin-top: 8px;
+.quick-settings .player .play-pause {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 8px;
+  transition: border-radius 0.2s;
+}
+
+.quick-settings .player.playing .play-pause {
+  border-radius: 24px;
 }
 
 .quick-settings .player trough {
   min-height: 24px;
-  margin-top: 8px;
+  margin: 24px;
+  border-radius: 24px;
 }
 
 .notification-item {
-  background-color: @secondary;
+  background-color: @surface;
   border-radius: 24px;
   padding: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .notification-item .icon {

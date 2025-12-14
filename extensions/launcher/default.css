@@ -2,11 +2,11 @@
   padding: 4px;
   border-radius: 24px;
   color: @foreground;
-  background-color: @secondary;
+  background-color: @surface;
 }
 
 .launcher .search {
-  background-color: @card;
+  background-color: @surface-variant;
   border-radius: 24px;
   padding: 0 16px;
   margin: 8px;
@@ -14,10 +14,11 @@
 
 .launcher .search entry {
   padding: 0;
+  background: transparent;
 }
 
 .launcher .grid + .grid {
-  border-top: 1px solid @border;
+  border-top: 1px solid @surface-variant;
 }
 
 .launcher .app {
@@ -27,7 +28,7 @@
 
 .launcher .app:hover,
 .launcher .app:focus {
-  background-color: @hover;
+  background-color: @surface-variant;
 }
 
 .launcher .app .icon {
@@ -63,6 +64,7 @@
   font-size: 40px;
 }
 
+/* todo: not working */
 .launcher .grid.drag-over {
   border: 2px solid @primary;
   border-radius: 12px;
