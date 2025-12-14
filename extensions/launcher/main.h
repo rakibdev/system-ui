@@ -61,6 +61,8 @@ class Launcher : public Extension {
   FlowBox* grid;
   void update(bool sort = true);
 
+  Response onRequest(std::string_view command) override;
+
   Launcher();
   ~Launcher();
 };

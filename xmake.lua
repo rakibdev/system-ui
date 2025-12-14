@@ -39,8 +39,6 @@ target("system-ui")
     set_build_dir()
 
     add_files("src/**.cpp")
-    -- todo: remove
-    remove_files("src/services/audio.cpp")
 
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0")
     

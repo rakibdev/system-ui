@@ -5,7 +5,7 @@
 #include "../../src/utils/debounce.h"
 
 class Player {
-  std::unique_ptr<PlayerController> controller;
+  std::unique_ptr<PlayerService> controller;
   Box *element;
   Button *thumbnail;
   Label *title;
@@ -15,7 +15,7 @@ class Player {
   std::string className;
   GtkCssProvider *cssProvider = nullptr;
 
-  PlayerController::Status lastStatus;
+  PlayerService::Status lastStatus;
   std::string lastTitle;
   std::string lastArtUrl;
 
@@ -26,14 +26,14 @@ class Player {
   void update();
 
  public:
-  Player(std::unique_ptr<PlayerController> &&_controller);
+  Player(std::unique_ptr<PlayerService> &&_controller);
   ~Player();
   void updateSlider();
   std::unique_ptr<EventBox> create();
 };
 
 class MediaControls {
-  std::unique_ptr<MediaController> controller;
+  std::unique_ptr<MediaService> controller;
   Box *element;
   void update();
 
