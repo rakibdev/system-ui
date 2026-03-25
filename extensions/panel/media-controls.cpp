@@ -1,8 +1,17 @@
 #include "media-controls.h"
 
-#include "../../src/theme.h"
+#include <map>
+#include <string>
+#include <unordered_map>
 
-Player::Player(std::unique_ptr<PlayerController> &&_controller)
+#include "../../libs/material-color-utilities/cpp/cam/hct.h"
+#include "../../src/config.h"
+#include "../../src/theme.h"
+#include "../../src/utils/image.h"
+#include "../theme/material.h"
+#include "../theme/theme.h"
+
+Player::Player(std::unique_ptr<PlayerService> &&_controller)
     : controller(std::move(_controller)) {
   onDragEnd = std::make_unique<Debounce>(400, [this]() { dragging = false; });
 }
@@ -21,8 +30,8 @@ void Player::updateSlider() {
 }
 
 void Player::updateTheme() {
-  AppData::Theme theme;
-  bool thumbnailBackgroundDark = true;
+  std::unordered_map<std::string, std::string> theme;
+  bool darkBackground = true;
 
   cairo_surface_t *surface =
       cairo_image_surface_create_from_png(controller->artUrl.c_str());
@@ -31,22 +40,26 @@ void Player::updateTheme() {
   bool fileNotFound = width == 0;
   bool chromiumSplashArt = width == 256 && width == height;
   bool invalidArt = fileNotFound || chromiumSplashArt;
-  if (invalidArt)
-    theme = appData.get().theme;
-  else {
-    cairo_surface_t *thumbnailSurface = Theme::resize(surface, width, height);
-    theme = Theme::fromImage(thumbnailSurface);
+  if (invalidArt) {
+    theme = systemUiConfig.get().theme;
+  } else {
+    cairo_surface_t *thumbnailSurface =
+        resizeImage(surface, width, height, 256);
 
-    int centerX = cairo_image_surface_get_width(thumbnailSurface) / 2;
-    int centerY = cairo_image_surface_get_height(thumbnailSurface) / 2;
-    int stride = cairo_image_surface_get_stride(thumbnailSurface);
-    unsigned char *pixels = cairo_image_surface_get_data(thumbnailSurface);
-    unsigned char *pixel = pixels + centerY * stride + centerX * 4;
-    int r = pixel[2];
-    int g = pixel[1];
-    int b = pixel[0];
-    float lightness = 0.21 * r + 0.72 * g + 0.07 * b;
-    thumbnailBackgroundDark = lightness < 100;
+    std::string sourceColor = colorFromImage(controller->artUrl);
+    if (sourceColor.empty()) {
+      theme = systemUiConfig.get().theme;
+    } else {
+      auto sourceHct = MaterialColors::hexToHct(sourceColor);
+      auto palette = MaterialColors::createDynamicPalette(
+          sourceHct, systemUiConfig.get().darkMode);
+      theme["background"] = palette.background;
+      theme["foreground"] = palette.foreground;
+      theme["primary"] = palette.primary;
+      theme["card"] = palette.card;
+    }
+
+    darkBackground = isDarkBackground(thumbnailSurface);
 
     cairo_surface_destroy(thumbnailSurface);
   }
@@ -64,26 +77,43 @@ void Player::updateTheme() {
     className = ".player." + className;
   }
 
-  std::string css = className + " { background-color: " + theme["card"] +
-                    "; color: " + theme["foreground"] + "; } ";
-  css += className + " trough { background-color: " + theme["primary"] + "; } ";
-  css +=
-      className + " highlight { background-color: " + theme["primary"] + "; } ";
+  std::string css = "";
 
-  css +=
-      className + " .thumbnail { background-color: " + theme["background"] +
-      "; " +
-      (invalidArt ? "} "
-                  : "background-image: url('" + controller->artUrl + "'); } ");
+  auto glassColor = [darkBackground](double opacity) {
+    return darkBackground
+               ? "rgba(255, 255, 255, " + std::to_string(opacity) + ")"
+               : "rgba(0, 0, 0, " + std::to_string(opacity) + ")";
+  };
+  const std::string glassBackground = glassColor(0.35);
+  const std::string glassForeground = darkBackground ? "#fff" : "#000";
+  const std::string progressBackground = glassColor(0.2);
 
-  css += className + " .thumbnail label { color: " +
-         theme[thumbnailBackgroundDark ? "primary" : "background"] + "; } ";
+  css += className + " { ";
+  if (!invalidArt)
+    css += "background-image: url('" + controller->artUrl + "'); ";
+  css += "color: " + glassForeground + "; ";
+  css += "} ";
+
+  css += className + " .play-pause { ";
+  css += "background: " + glassBackground + "; ";
+  css += "color: " + glassForeground + "; ";
+  css += "} ";
+
+  /* progress */
+  css += className + " trough { ";
+  css += "background-color: " + progressBackground + "; ";
+  css += "} ";
+
+  /* progress thumb */
+  css += className + " highlight { ";
+  css += "background-color: " + glassBackground + "; ";
+  css += "} ";
 
   gtk_css_provider_load_from_data(cssProvider, css.c_str(), -1, nullptr);
 }
 
 void Player::update() {
-  if (controller->status == PlayerController::Stopped) {
+  if (controller->status == PlayerService::Stopped) {
     if (lastStatus == controller->status) return;
     element->visible(false);
   } else if (!controller->title.empty()) {
@@ -94,17 +124,16 @@ void Player::update() {
     element->visible();
     // Only clear content children, not thumbnail->children.clear().
     thumbnail->content->children.clear();
-    title->value(controller->title);
-    if (controller->artist.empty())
-      artist->visible(false);
-    else {
-      artist->visible(true);
-      artist->value(controller->artist);
-    }
+    title->set(controller->title);
     updateTheme();
 
-    if (controller->status == PlayerController::Paused)
+    if (controller->status == PlayerService::Paused) {
       thumbnail->setContent("play_arrow");
+      element->removeClass("playing");
+    } else if (controller->status == PlayerService::Playing) {
+      thumbnail->setContent("pause");
+      element->addClass("playing");
+    }
   }
   lastStatus = controller->status;
   lastTitle = controller->title;
@@ -113,60 +142,53 @@ void Player::update() {
 
 std::unique_ptr<EventBox> Player::create() {
   auto _title = std::make_unique<Label>();
+  _title->addClass("title");
   title = _title.get();
-  gtk_widget_set_halign(title->widget,
-                        GTK_ALIGN_START);  // Keep direct GTK call
+  gtk_widget_set_halign(title->widget, GTK_ALIGN_START);  // Required
+  gtk_label_set_ellipsize(GTK_LABEL(title->widget), PANGO_ELLIPSIZE_END);
+  gtk_widget_set_hexpand(title->widget, true);  // Pushes play/pause to right
 
-  auto _artist = std::make_unique<Label>()->addClass("artist");
-  artist = _artist.get();
-  gtk_widget_set_halign(artist->widget,
-                        GTK_ALIGN_START);  // Keep direct GTK call
+  auto playPauseButton =
+      std::make_unique<Button>(Button::Type::Icon, Button::None);
+  playPauseButton->addClass("play-pause");
+  playPauseButton->onClick([this]() { controller->playPause(); });
+  gtk_widget_set_halign(playPauseButton->widget, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign(playPauseButton->widget, GTK_ALIGN_CENTER);
+  thumbnail = playPauseButton.get();
 
-  auto details = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL)
-                     ->add(std::move(_title))
-                     ->add(std::move(_artist));
-  gtk_widget_set_hexpand(details->widget, true);  // Keep direct GTK call
-  gtk_widget_set_valign(details->widget,
-                        GTK_ALIGN_CENTER);  // Keep direct GTK call
+  auto header = std::make_unique<Box>();
+  header->add(std::move(_title));
+  header->add(std::move(playPauseButton));
+  gtk_widget_set_vexpand(header->widget,
+                         true);  // Pushes slider to bottom
 
-  auto _thumbnail = std::make_unique<Button>(Button::Type::Icon, Button::None)
-                        ->addClass("thumbnail")
-                        ->onClick([this]() { controller->playPause(); });
-  thumbnail = _thumbnail.get();
-
-  auto header = std::make_unique<Box>()
-                    ->add(std::move(details))
-                    ->add(std::move(_thumbnail));
-
-  auto _slider =
-      std::make_unique<Slider>()
-          ->onPointerDown([this](GdkEventButton *) { dragging = true; })
-          ->onPointerUp([this](GdkEventButton *) { dragging = false; })
-          ->onScroll([this](ScrollDirection direction) {
-            dragging = true;
-            onDragEnd->call();
-          })
-          ->onChange([this]() {
-            if (dragging) controller->progress(slider->value());
-          });
+  auto _slider = std::make_unique<Slider>();
+  _slider->onPointerDown([this](GdkEventButton *) { dragging = true; });
+  _slider->onPointerUp([this](GdkEventButton *) { dragging = false; });
+  _slider->onScroll([this](ScrollDirection direction) {
+    dragging = true;
+    onDragEnd->call();
+  });
+  _slider->onChange([this]() {
+    if (dragging) controller->progress(slider->value());
+  });
   slider = _slider.get();
-  gtk_range_set_increments((GtkRange *)slider->widget, 1,
-                           5);  // Keep direct GTK call
+  gtk_range_set_increments((GtkRange *)slider->widget, 1, 5);
 
-  auto _element = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL)
-                      ->addClass("player")
-                      ->add(std::move(header))
-                      ->add(std::move(_slider));
+  auto _element = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  _element->addClass("player");
+  _element->add(std::move(header));
+  _element->add(std::move(_slider));
   element = _element.get();
 
-  auto eventBox = std::make_unique<EventBox>()
-                      ->onScroll([this](ScrollDirection direction) {
-                        if (direction == ScrollDirection::Up)
-                          controller->next();
-                        else
-                          controller->previous();
-                      })
-                      ->add(std::move(_element));
+  auto eventBox = std::make_unique<EventBox>();
+  eventBox->onScroll([this](ScrollDirection direction) {
+    if (direction == ScrollDirection::Up)
+      controller->next();
+    else
+      controller->previous();
+  });
+  eventBox->add(std::move(_element));
 
   controller->onChange([this]() { update(); });
   update();
@@ -187,7 +209,7 @@ void MediaControls::update() {
 }
 
 void MediaControls::activate() {
-  controller = std::make_unique<MediaController>();
+  controller = std::make_unique<MediaService>();
   controller->onPlayersChange([this]() { update(); });
   update();
 }

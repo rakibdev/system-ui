@@ -5,7 +5,7 @@
 namespace Daemon {
 extern ExtensionManager manager;
 int request(const std::string& content);
-void initialize();
+void initialize(bool serve = false);
 }
 
 namespace Extensions {

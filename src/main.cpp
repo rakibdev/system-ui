@@ -46,9 +46,9 @@ int main(int argc, char* argv[]) {
   }
 
   if (status > 0) {
-    if (command == "daemon") {
+    if (command == "daemon" || command == "daemon --serve") {
       Log::info("Daemon running.");
-      Daemon::initialize();
+      Daemon::initialize(command.find("--serve") != std::string::npos);
     } else if (command == "stop daemon") {
       Log::error("Daemon hasn't been started.");
       return 1;

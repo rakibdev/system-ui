@@ -54,6 +54,7 @@ class Launcher : public Extension {
   void openContextMenu(App& app, GdkEventButton* event);
   std::unique_ptr<FlowBox> createGrid();
   std::unique_ptr<Box> createSearch();
+  void createWindow();
   void unload();
 
  public:

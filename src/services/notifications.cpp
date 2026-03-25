@@ -103,7 +103,10 @@ void NotificationManager::onNotify(GVariant *parameters,
   auto id = index + 1;
   g_dbus_method_invocation_return_value(invocation, g_variant_new("(u)", id));
 
-  if (onChange) onChange();
+  if (onChange) {
+    ChangeEvent change{EventType::ADDED, static_cast<uint>(index)};
+    onChange(change);
+  }
 
   startAutoHide(index);
 }
@@ -205,7 +208,10 @@ void NotificationManager::remove(uint index, RemoveReason reason) {
                                 "NotificationClosed",
                                 g_variant_new("(uu)", id, 2), nullptr);
 
-  if (onChange) onChange();
+  if (onChange) {
+    ChangeEvent change{EventType::REMOVED, static_cast<uint>(index)};
+    onChange(change);
+  }
 }
 
 void NotificationManager::clear() {

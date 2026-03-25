@@ -188,16 +188,6 @@ class Window : public EventBox {
   std::tuple<Align, Align> align();
 };
 
-class Dialog : public Window {
-  Element* parent;
-
- public:
-  Box* body;
-  Box* actions;
-  Dialog(Element* parent, Window* window);
-  Dialog* visible(bool value) override;
-};
-
 class MenuItem : public Element {
   std::function<void()> clickCallback;
 

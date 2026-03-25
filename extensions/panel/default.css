@@ -80,5 +80,63 @@
 }
 
 .notification-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: @surface-variant;
+}
+
+.audio-dialog .section-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.audio-dialog-container {
+  border-radius: 24px;
+  background-color: @popover;
+  padding: 16px;
+  min-width: 360px;
+}
+
+.audio-row {
+  padding: 4px 0;
+}
+
+.audio-row .device-name,
+.audio-row .slider-percent {
+  font-size: 14px;
+  color: @foreground;
+}
+
+.audio-row .icon.device-icon {
+  color: @foreground;
+}
+
+.audio-row .active-dot {
+  font-size: 16px;
+  color: @primaryForeground;
+}
+
+.audio-trough trough {
+  min-height: 40px;
+  border-radius: 24px;
+  background-color: @secondary;
+}
+
+.audio-trough trough highlight {
+  background-color: @primary;
+  border-radius: 24px;
+}
+
+.audio-trough.over trough highlight {
+  background-color: red;
+}
+
+.audio-trough slider {
+  all: unset;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  opacity: 0;
 }

@@ -1,26 +1,10 @@
-set -e
-
 [ $# -eq 0 ] && exit 1
 
-EXTENSION=$1
-COMMAND=${2:-""}
+root=$PWD
 
-if [ "$EXTENSION" = "stop" ]; then
-    SO_FILE=$(find extensions -name "$COMMAND.so" -type f | head -n 1)
-    [ -z "$SO_FILE" ] && exit 1
-    ./build/ui stop "$SO_FILE"
-    exit 0
+if [ "$1" = "stop" ]; then
+    exec "$root/build/ui" stop "$root/extensions/$2/build/$2.so"
 fi
 
-[ ! -d "extensions/$EXTENSION" ] && exit 1
-
-cd "extensions/$EXTENSION"
-xmake -P .
-cd "../.."
-
-SO_FILE=$(find extensions/$EXTENSION -name "$EXTENSION.so" -type f | head -n 1)
-[ -z "$SO_FILE" ] && exit 1
-
-pgrep -f "./build/ui daemon" > /dev/null || { echo "Daemon not running"; exit 1; }
-
-[ -n "$COMMAND" ] && ./build/ui "$SO_FILE" "$COMMAND" || ./build/ui "$SO_FILE"
+xmake -P "extensions/$1"
+exec "$root/build/ui" "$root/extensions/$1/build/$1.so" $2

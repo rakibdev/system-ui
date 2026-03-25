@@ -314,7 +314,6 @@ void Launcher::unload() {
 }
 
 void Launcher::launch(const std::string& command) {
-  unload();
   runNewProcess(command);
 }
 
@@ -496,6 +495,18 @@ Launcher::~Launcher() {
   if (window) window.reset();
 }
 
+Extension::Response Launcher::onRequest(std::string_view command) {
+  if (command == "toggle") {
+    if (window) {
+      unload();
+      return {"Launcher closed", 0};
+    }
+    createWindow();
+    return {"Launcher opened", 0};
+  }
+  return {"Unknown command", 1};
+}
+
 Launcher::Launcher() {
   dragDrop = std::make_unique<DragDrop>(this);
 
@@ -513,17 +524,16 @@ Launcher::Launcher() {
   }
 
   Pinned::syncPinned(apps);
+}
 
-#ifdef DEV
-  window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
-#else
+void Launcher::createWindow() {
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL,
                                     GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
-#endif
+  gtk_layer_set_namespace((GtkWindow*)window->widget, "launcher");
   window->addClass("launcher");
   window->size(440, 540);
 
-  cssManager->add(SHARE_DIR + "/extensions/launcher/default.css");
+  cssManager->add(std::string(EXT_DIR) + "/default.css");
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
   window->visible();

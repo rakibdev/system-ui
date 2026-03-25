@@ -1,0 +1,80 @@
+.launcher .body {
+  padding: 4px;
+  border-radius: 24px;
+  color: @foreground;
+  background-color: @surface;
+}
+
+.launcher .search {
+  background-color: @surface-variant;
+  border-radius: 24px;
+  padding: 0 16px;
+  margin: 8px;
+}
+
+.launcher .search entry {
+  padding: 0;
+  background: transparent;
+}
+
+.launcher .grid + .grid {
+  border-top: 1px solid @surface-variant;
+}
+
+.launcher .app {
+  padding: 16px;
+  border-radius: 24px;
+}
+
+.launcher .app:hover,
+.launcher .app:focus {
+  background-color: @surface-variant;
+}
+
+.launcher .app .icon {
+  border-radius: 50%;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.launcher .app .icon.adaptive {
+  background-color: #fff;
+  background-size: 38px;
+}
+
+.launcher .app .icon.circular {
+  background-size: 48px;
+}
+
+.launcher .app .name {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.app-menu menuitem.no-icon {
+  padding-left: 40px;
+}
+
+.launcher .placeholder {
+  padding: 24px;
+  color: @secondary;
+}
+
+.launcher .placeholder .icon label {
+  font-size: 40px;
+}
+
+/* todo: not working */
+.launcher .grid.drag-over {
+  border: 2px solid @primary;
+  border-radius: 12px;
+}
+
+.launcher .app.dragging {
+  opacity: 0.6;
+}
+
+.drag-icon {
+  background-size: 38px;
+  background-repeat: no-repeat;
+}
