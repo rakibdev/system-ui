@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xmake -P:*)",
+      "Bash(./run panel toggle:*)",
+      "Bash(./build/ui stop:*)",
+      "Bash(xmake:*)",
+      "Bash(sudo rm:*)"
+    ]
+  }
+}

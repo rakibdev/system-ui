@@ -1,0 +1,20 @@
+.{
+    .name = .system_ui,
+    .version = "0.1.0",
+    .fingerprint = 0x48530e45ce218636,
+    .minimum_zig_version = "0.14.0",
+    .dependencies = .{
+        .libqt6zig = .{
+            .url = "https://github.com/rcalixte/libqt6zig/archive/refs/heads/main.tar.gz",
+            .hash = "1220a3c8c9e842ab60d0a9e1e5f0b9e9c2f3e8d1b4c5a6e7f8g9h0i1j2k3l4m5n6o7p8",
+            .lazy = true,
+        },
+    },
+    .paths = .{
+        "src",
+        "extensions",
+        "examples",
+        "build.zig",
+        "build.zig.zon",
+    },
+}
