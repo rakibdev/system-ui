@@ -195,6 +195,8 @@ std::string iconFromName(const std::string& name) {
   if (name.find("webcam") != std::string::npos ||
       name.find("camera") != std::string::npos)
     return "videocam";
+  if (name.find("bluetooth") != std::string::npos) return "bluetooth_audio";
+  if (name.find("usb") != std::string::npos) return "usb";
   return "";
 }
 

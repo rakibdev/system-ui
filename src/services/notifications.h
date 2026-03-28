@@ -24,6 +24,13 @@ struct Notification {
   Urgency urgency = Urgency::NORMAL;
 };
 
+enum class EventType { ADDED, REMOVED, CLEARED };
+
+struct ChangeEvent {
+  EventType type;
+  uint index = 0;
+};
+
 class NotificationManager {
   GDBusConnection *connection;
   uint ownerId;
@@ -42,5 +49,6 @@ class NotificationManager {
   void invoke(uint index, const std::string &action);
   void pause(uint index);
   void startAutoHide(uint index);
-  std::function<void()> onChange;
+
+  std::function<void(const ChangeEvent &)> onChange;
 };

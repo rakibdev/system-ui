@@ -6,11 +6,7 @@
 
 #include "utils/storage.h"
 
-#ifdef DEV
-const std::string SHARE_DIR = std::filesystem::current_path().string();
-#else
-const std::string SHARE_DIR = "/usr/share/system-ui";
-#endif
+extern const std::string shareDir;
 const std::string HOME = std::getenv("HOME");
 const std::string TEMP = "/tmp/system-ui";
 const std::string SOCKET_FILE = TEMP + "/daemon.sock";

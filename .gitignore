@@ -3,3 +3,6 @@ build/
 .cache/
 .cursor/
 compile_commands.json
+
+.zig-cache
+zig-out

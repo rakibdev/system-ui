@@ -7,19 +7,21 @@
 #include <sstream>
 
 #include "../../src/config.h"
-// #include "../../src/services/audio.h"  // TODO: Fix audio service dependency
+#include "../../src/services/audio.h"
 #include "../../src/services/bluetooth.h"
 #include "../../src/services/hyprland.h"
 #include "../../src/services/network.h"
 #include "../../src/utils/css.h"
 #include "../../src/utils/run.h"
+#include "../../src/daemon.h"
+#include "audio-dialog.h"
 #include "notifications.h"
 
 class Tile : public Button {
  public:
   bool active = false;
-  Label *label;
-  Label *description;
+  Label* label;
+  Label* description;
 
   void setActive(bool value) {
     active = value;
@@ -32,7 +34,7 @@ class Tile : public Button {
   Tile() {
     addClass("tile");
     gtk_orientable_set_orientation(
-        (GtkOrientable *)content->widget,
+        (GtkOrientable*)content->widget,
         GTK_ORIENTATION_VERTICAL);  // Keep direct GTK call
 
     // End icon spacer.
@@ -43,6 +45,7 @@ class Tile : public Button {
     label = _label.get();
     gtk_widget_set_halign(label->widget,
                           GTK_ALIGN_START);  // Keep direct GTK call
+    gtk_label_set_ellipsize(GTK_LABEL(label->widget), PANGO_ELLIPSIZE_END);
     content->add(std::move(_label));
 
     auto _description = std::make_unique<Label>();
@@ -55,7 +58,7 @@ class Tile : public Button {
 };
 
 namespace NetworkTile {
-Tile *tile;
+Tile* tile;
 std::unique_ptr<Network> controller;
 
 void update() {
@@ -101,7 +104,7 @@ void destroy() { controller.reset(); }
 }
 
 namespace BluetoothTile {
-Tile *tile;
+Tile* tile;
 std::unique_ptr<BluetoothController> controller;
 
 void update() {
@@ -117,7 +120,7 @@ void update() {
       description = "Connecting...";
     } else {
       uint8_t connectedCount = 0;
-      for (const auto &device : controller->devices) {
+      for (const auto& device : controller->devices) {
         if (device.status != BluetoothDevice::Connected) continue;
         if (connectedCount > 0) {
           description = std::to_string(connectedCount) + " devices";
@@ -166,70 +169,63 @@ void listen() {
 void destroy() { controller.reset(); }
 }
 
-namespace AudioDialog {
-std::unique_ptr<Dialog> dialog;
-
-void update() {
-  if (!dialog) return;
-}
-
-void create() {
-  // dialog = std::make_unique<Dialog>(Panel::body, Panel::window.get());
-  // auto label = std::make_unique<Label>();
-  // dialog->body->add(std::move(label));
-  // dialog->visible();
-}
-
-void destroy() { dialog.reset(); }
-
-}
-
 namespace AudioTile {
-Tile *tile;
+Tile* tile;
 
-void onScoll(ScrollDirection direction) {
-  // TODO: Implement audio volume control
-  // uint16_t volume =
-  //     std::clamp(Audio::defaultSink->volume +
-  //                    (direction == ScrollDirection::Up ? 10 : -10),
-  //                0, 100);
-  // Audio::volume(Audio::defaultSink, volume);
+void onScroll(ScrollDirection direction) {
+  if (!Audio::defaultSink) return;
+  int16_t delta = direction == ScrollDirection::Up ? 10 : -10;
+  uint16_t volume = std::clamp(Audio::defaultSink->volume + delta, 0, 100);
+  Audio::volume(Audio::defaultSink, volume);
 }
 
 void update() {
+  if (!tile) return;
   std::string label = "Volume";
   std::string icon = "no_sound";
-  // TODO: Implement audio service integration
-  // if (Audio::defaultSink) {
-  //   label = std::to_string(Audio::defaultSink->volume) + "%";
-  //   if (Audio::defaultSink->volume > 50)
-  //     icon = "volume_up";
-  //   else if (Audio::defaultSink->volume > 0)
-  //     icon = "volume_down";
-  //   else
-  //     icon = "volume_mute";
-  // }
+  if (Audio::defaultSink) {
+    label = Audio::defaultSink->label;
+    uint16_t vol = Audio::defaultSink->volume;
+    tile->description->set(std::to_string(vol) + "%");
+    if (vol > 50)
+      icon = "volume_up";
+    else if (vol > 0)
+      icon = "volume_down";
+    else
+      icon = "volume_mute";
+  }
   tile->startIcon->set(icon);
-  tile->setContent(label);
+  tile->label->set(label);
+  tile->setActive(Audio::defaultSink && Audio::defaultSink->volume > 0);
 }
 
 std::unique_ptr<EventBox> create() {
   auto _tile = std::make_unique<Tile>();
   tile = _tile.get();
   tile->endIcon->set("keyboard_arrow_right");
-  // tile->onClick(AudioDialog::create); // Keep commented
+  tile->onClick(AudioDialog::create);
 
   auto eventBox = std::make_unique<EventBox>();
-  eventBox->onScroll(onScoll);
+  eventBox->onScroll(onScroll);
   eventBox->add(std::move(_tile));
   return eventBox;
 }
+
+void listen() {
+  Audio::onChange([]() {
+    update();
+    AudioDialog::update();
+  });
+  update();
+}
+
+void destroy() { tile = nullptr; }
 }
 
 namespace NightLightTile {
-Tile *tile;
-std::string nightLightShader = SHARE_DIR + "/shaders/night-light.frag";
-std::string resetShader = SHARE_DIR + "/shaders/reset.frag";
+Tile* tile;
+std::string nightLightShader = shareDir + "/shaders/night-light.frag";
+std::string resetShader = shareDir + "/shaders/reset.frag";
 
 void update() {
   std::string error;
@@ -281,7 +277,7 @@ std::unique_ptr<Tile> create() {
 }
 
 namespace RamTile {
-Tile *tile;
+Tile* tile;
 
 std::tuple<float, float> getUsage() {
   std::ifstream meminfo("/proc/meminfo");
@@ -331,10 +327,10 @@ std::unique_ptr<Tile> create() {
 }
 
 namespace CpuTile {
-Tile *tile;
+Tile* tile;
 
 int previousIdleTime, previousTotalTime;
-void loadTimes(int &idleTime, int &totalTime) {
+void loadTimes(int& idleTime, int& totalTime) {
   std::ifstream line("/proc/stat");
   line.ignore(5, ' ');  // skip "cpu" prefix.
   std::vector<size_t> times;
@@ -362,7 +358,7 @@ struct Sensor {
 };
 std::vector<Sensor> getTemperatureSensors() {
   std::vector<Sensor> result;
-  for (const auto &it :
+  for (const auto& it :
        std::filesystem::directory_iterator("/sys/class/hwmon")) {
     if (it.is_directory()) {
       std::string sensorPath = it.path();
@@ -379,7 +375,7 @@ std::vector<Sensor> getTemperatureSensors() {
     };
   }
   std::sort(result.begin(), result.end(),
-            [](const Sensor &sensor, const Sensor &sensor2) {
+            [](const Sensor& sensor, const Sensor& sensor2) {
               return sensor.temperature > sensor2.temperature;
             });
   return result;
@@ -413,7 +409,7 @@ std::unique_ptr<Tile> create() {
 }
 
 namespace Uptime {
-Label *label;
+Label* label;
 
 std::string get() {
   std::ifstream file("/proc/uptime");
@@ -446,12 +442,12 @@ std::unique_ptr<Label> create() {
 }
 
 namespace TimeDate {
-Button *button;
+Button* button;
 
 void update() {
   std::time_t now;
   std::time(&now);
-  struct tm *timeinfo = std::localtime(&now);
+  struct tm* timeinfo = std::localtime(&now);
   char time[80];
   std::strftime(time, sizeof(time), "%I:%M", timeinfo);
   char date[80];
@@ -479,18 +475,20 @@ void Panel::update() {
   CpuTile::update();
   RamTile::update();
 
-  for (auto &player : mediaControls->players) player->updateSlider();
+  for (auto& player : mediaControls->players) player->updateSlider();
 }
 
 void Panel::createWindow() {
   if (window) return;
 
-  window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
+  window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL,
+                                    GTK_LAYER_SHELL_KEYBOARD_MODE_NONE);
+  gtk_layer_set_namespace((GtkWindow*)window->widget, "panel");
   window->addClass("panel");
 
   window->size(440, 500);
 
-  window->onKeyDown([this](GdkEventKey *event) {
+  window->onKeyDown([this](GdkEventKey* event) {
     if (event->keyval == GDK_KEY_Escape) {
       destroyWindow();
     }
@@ -541,7 +539,7 @@ void Panel::createWindow() {
       footer->add(Uptime::create());
 
       auto spacer = std::make_unique<Box>();
-      gtk_widget_set_hexpand((GtkWidget *)spacer->widget,
+      gtk_widget_set_hexpand((GtkWidget*)spacer->widget,
                              true);  // Keep direct GTK call
       footer->add(std::move(spacer));
 
@@ -562,6 +560,8 @@ void Panel::createWindow() {
   mediaControls->activate();
   NetworkTile::listen();
   BluetoothTile::listen();
+  AudioTile::listen();
+  AudioDialog::setParent(body, window.get());
   NightLightTile::update();
   Uptime::update();
   TimeDate::update();
@@ -570,7 +570,7 @@ void Panel::createWindow() {
   updateTimer = g_timeout_add(
       1000,
       [](gpointer data) -> gboolean {
-        auto _this = static_cast<Panel *>(data);
+        auto _this = static_cast<Panel*>(data);
         _this->update();
         return G_SOURCE_CONTINUE;
       },
@@ -587,6 +587,8 @@ void Panel::destroyWindow() {
   mediaControls->deactivate();
   NetworkTile::destroy();
   BluetoothTile::destroy();
+  AudioTile::destroy();
+  AudioDialog::destroy();
 
   window.reset();
   body = nullptr;
@@ -606,10 +608,11 @@ Extension::Response Panel::onRequest(std::string_view command) {
 }
 
 Panel::Panel() {
-  cssManager->add(SHARE_DIR + "/extensions/panel/default.css");
+  cssManager->add(std::string(EXT_DIR) + "/default.css");
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
   mediaControls = std::make_unique<MediaControls>();
+  Audio::initialize();
 
   Notifications::initialize();
 }
@@ -618,6 +621,7 @@ Panel::~Panel() {
   destroyWindow();
   Notifications::destroy();
   mediaControls.reset();
+  Audio::destroy();
 }
 
 EXPORT_EXTENSION(Panel)

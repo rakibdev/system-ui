@@ -437,48 +437,6 @@ std::tuple<Align, Align> Window::align() {
   return std::make_tuple(horizontal, vertical);
 }
 
-Dialog::Dialog(Element* parent, Window* window)
-    : Window(GTK_WINDOW_POPUP), parent(parent) {
-  // todo:
-  auto dialog = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  dialog->addClass("dialog");
-  // dialog->expand(false, false);
-  dialog->size(336, 100);
-
-  auto _body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  body = _body.get();
-  // body->expand(false, false);
-  body->addClass("body");
-  dialog->add(std::move(_body));
-
-  auto _actions = std::make_unique<Box>();
-  actions = _actions.get();
-  actions->addClass("actions");
-  // actions->align(Align::End);
-  // actions->expand(false, false);
-  dialog->add(std::move(_actions));
-
-  addClass("dialog-container");
-  // align(Align::Center, Align::Center);
-  add(std::move(dialog));
-
-  gtk_window_set_modal((GtkWindow*)widget, true);
-  gtk_window_set_transient_for((GtkWindow*)widget, (GtkWindow*)window->widget);
-  auto [horizontal, vertical] = window->align();
-  align(horizontal, vertical);
-}
-
-Dialog* Dialog::visible(bool value) {
-  if (value) {
-    int width = gtk_widget_get_allocated_width(parent->widget);
-    int height = gtk_widget_get_allocated_height(parent->widget);
-    size(width, height);
-    gtk_window_present((GtkWindow*)widget);
-  } else {
-  }
-  return this;
-}
-
 MenuItem::MenuItem(const std::string& label, const std::string& icon) {
   widget = gtk_menu_item_new();
 

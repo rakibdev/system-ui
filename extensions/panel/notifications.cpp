@@ -3,12 +3,15 @@
 #include <algorithm>
 
 #include "../../src/services/notifications.h"
+#include "../../src/utils/transition.h"
 #include "gtk-layer-shell.h"
 
 namespace Notifications {
 std::unique_ptr<NotificationManager> managerPtr;
 NotificationManager* manager;
 std::unique_ptr<Window> popupWindow;
+bool isTransitioning = false;
+std::unique_ptr<PropertyTransition> slideTransition;
 
 class NotificationItem : public EventBox {
  public:
@@ -81,16 +84,17 @@ class NotificationItem : public EventBox {
 };
 
 void hidePopup() {
+  if (slideTransition) {
+    slideTransition->stop();
+    slideTransition.reset();
+  }
   if (popupWindow) {
     popupWindow.reset();
   }
+  isTransitioning = false;
 }
 
-void updatePopups() {
-  hidePopup();
-
-  if (manager->list.empty()) return;
-
+void showPopupWithoutTransition() {
   popupWindow = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
   popupWindow->addClass("notification-popup");
   gtk_layer_set_anchor((GtkWindow*)popupWindow->widget,
@@ -113,13 +117,118 @@ void updatePopups() {
   popupWindow->visible();
 }
 
+void showPopupWithTransition() {
+  if (isTransitioning) return;
+
+  isTransitioning = true;
+
+  popupWindow = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL);
+  popupWindow->addClass("notification-popup");
+  gtk_layer_set_anchor((GtkWindow*)popupWindow->widget,
+                       GTK_LAYER_SHELL_EDGE_TOP, true);
+
+  // Start with negative margin (hidden above screen)
+  gtk_layer_set_margin((GtkWindow*)popupWindow->widget,
+                       GTK_LAYER_SHELL_EDGE_TOP, -100);
+  popupWindow->size(440, -1);
+
+  auto notificationBox = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  notificationBox->addClass("notification-list");
+  notificationBox->gap(8);
+
+  for (int i = manager->list.size() - 1; i >= 0; i--) {
+    const auto& notification = manager->list[i];
+    auto notificationItem = std::make_unique<NotificationItem>(notification, i);
+    notificationBox->add(std::move(notificationItem));
+  }
+
+  popupWindow->add(std::move(notificationBox));
+  popupWindow->visible();
+
+  // Create slide-down transition
+  slideTransition =
+      std::make_unique<PropertyTransition>(300, EasingType::EaseOut);
+  slideTransition->property("margin", -100,
+                            24);  // Slide down to final position
+
+  GtkWidget* windowWidget = popupWindow->widget;
+  slideTransition->start(
+      [windowWidget](const std::string& property, TransitionValue value) {
+        if (!windowWidget || !GTK_IS_WIDGET(windowWidget)) return;
+
+        if (property == "margin") {
+          std::visit(
+              [windowWidget](auto&& val) {
+                int marginValue = static_cast<int>(val);
+                gtk_layer_set_margin((GtkWindow*)windowWidget,
+                                     GTK_LAYER_SHELL_EDGE_TOP, marginValue);
+              },
+              value);
+        }
+      },
+      []() {
+        // Animation finished
+        isTransitioning = false;
+        slideTransition.reset();
+      });
+}
+
+void handleNotificationChange(const ChangeEvent& change) {
+  // Prevent handling changes during transitions to avoid glitches
+  if (isTransitioning && change.type != EventType::CLEARED) return;
+
+  switch (change.type) {
+    case EventType::ADDED:
+      if (manager->list.empty()) return;
+
+      if (!popupWindow) {
+        // First notification - show with slide-down
+        showPopupWithTransition();
+      } else {
+        // Add to existing popup - just refresh without transition
+        hidePopup();
+        showPopupWithoutTransition();
+      }
+      break;
+
+    case EventType::REMOVED:
+      if (manager->list.empty()) {
+        // Last notification removed - hide immediately
+        hidePopup();
+      } else {
+        // Still have notifications - refresh without transition
+        hidePopup();
+        showPopupWithoutTransition();
+      }
+      break;
+
+    case EventType::CLEARED:
+      hidePopup();
+      break;
+  }
+}
+
+void updatePopups() {
+  if (manager->list.empty()) {
+    hidePopup();
+    return;
+  }
+
+  hidePopup();
+  showPopupWithTransition();
+}
+
 void initialize() {
   managerPtr = std::make_unique<NotificationManager>();
   manager = managerPtr.get();
-  manager->onChange = []() { updatePopups(); };
+  manager->onChange = [](const ChangeEvent& change) {
+    handleNotificationChange(change);
+  };
 }
 
 void destroy() {
+  isTransitioning = false;  // Cancel any ongoing transitions
+  slideTransition.reset();  // Clean up transition
   hidePopup();
   managerPtr.reset();
   manager = nullptr;
