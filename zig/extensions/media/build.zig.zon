@@ -1,0 +1,7 @@
+.{
+    .name = .media,
+    .version = "0.1.0",
+    .fingerprint = 0x6a2ca10c0d5209ce,
+    .minimum_zig_version = "0.14.0",
+    .paths = .{"."},
+}
