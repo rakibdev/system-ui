@@ -1,8 +1,8 @@
-#include <iostream>
+import media;
+import argparser;
+import log;
 
-#include "../../src/services/media.h"
-#include "../../src/utils/argparser.h"
-#include "../../src/utils/log.h"
+import std;
 
 void usage() {
   Log::Table content = {

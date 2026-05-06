@@ -1,16 +1,10 @@
-#include <cairo/cairo.h>
+import argparser;
+import log;
+import color;
+import material;
+import generate;
 
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <regex>
-#include <sstream>
-
-#include "../../src/utils/argparser.h"
-#include "../../src/utils/log.h"
-#include "color.h"
-#include "material.h"
-#include "theme.h"
+import std;
 
 void usage() {
   Log::Table content = {

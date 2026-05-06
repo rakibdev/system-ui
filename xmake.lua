@@ -37,8 +37,9 @@ end
 target("system-ui")
     set_kind("shared")
     set_build_dir()
+    add_rules("c++.build.modules")
 
-    add_files("src/**.cpp")
+    add_files("src/**.cpp", "src/**.cppm")
 
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0")
     
@@ -60,3 +61,7 @@ target("ui")
     set_build_dir()
     add_deps("system-ui")
     add_rpathdirs("@loader_path")
+includes("extensions/launcher/xmake.lua")
+includes("extensions/panel/xmake.lua")
+includes("extensions/theme/xmake.lua")
+includes("extensions/media/xmake.lua")

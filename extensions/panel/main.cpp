@@ -1,21 +1,38 @@
-#include "main.h"
+#include <gtk/gtk.h>
+#include <gtk-layer-shell.h>
 
-#include <cmath>
-#include <filesystem>
-#include <iomanip>
-#include <numeric>
-#include <sstream>
+import element;
+import extension;
+import config;
+import audio;
+import bluetooth;
+import hyprland;
+import network;
+import css;
+import run;
+import daemon;
+import log;
+import audio_dialog;
+import media_controls_ext;
+import notifications_ext;
 
-#include "../../src/config.h"
-#include "../../src/services/audio.h"
-#include "../../src/services/bluetooth.h"
-#include "../../src/services/hyprland.h"
-#include "../../src/services/network.h"
-#include "../../src/utils/css.h"
-#include "../../src/utils/run.h"
-#include "../../src/daemon.h"
-#include "audio-dialog.h"
-#include "notifications.h"
+import std;
+
+class Panel : public Extension {
+  std::unique_ptr<MediaControls> mediaControls;
+  std::unique_ptr<Window> window;
+  Box* body;
+  int updateTimer = 0;
+
+  void createWindow();
+  void destroyWindow();
+  void update();
+
+ public:
+  Response onRequest(std::string_view command) override;
+  Panel();
+  ~Panel();
+};
 
 class Tile : public Button {
  public:
@@ -119,7 +136,7 @@ void update() {
       icon = "bluetooth_connecting";
       description = "Connecting...";
     } else {
-      uint8_t connectedCount = 0;
+      std::uint8_t connectedCount = 0;
       for (const auto& device : controller->devices) {
         if (device.status != BluetoothDevice::Connected) continue;
         if (connectedCount > 0) {
@@ -174,8 +191,8 @@ Tile* tile;
 
 void onScroll(ScrollDirection direction) {
   if (!Audio::defaultSink) return;
-  int16_t delta = direction == ScrollDirection::Up ? 10 : -10;
-  uint16_t volume = std::clamp(Audio::defaultSink->volume + delta, 0, 100);
+  std::int16_t delta = direction == ScrollDirection::Up ? 10 : -10;
+  std::uint16_t volume = std::clamp(Audio::defaultSink->volume + delta, 0, 100);
   Audio::volume(Audio::defaultSink, volume);
 }
 
@@ -185,7 +202,7 @@ void update() {
   std::string icon = "no_sound";
   if (Audio::defaultSink) {
     label = Audio::defaultSink->label;
-    uint16_t vol = Audio::defaultSink->volume;
+    std::uint16_t vol = Audio::defaultSink->volume;
     tile->description->set(std::to_string(vol) + "%");
     if (vol > 50)
       icon = "volume_up";
@@ -242,10 +259,10 @@ void update() {
   std::string line;
   std::string prefix = "str: \"";
   while (std::getline(iss, line)) {
-    size_t startIndex = line.find(prefix);
+    std::size_t startIndex = line.find(prefix);
     if (startIndex == std::string::npos) continue;
     value = line.substr(startIndex + prefix.length());
-    size_t endIndex = value.find("\"");
+    std::size_t endIndex = value.find("\"");
     value = value.substr(0, endIndex);
     break;
   }
@@ -294,8 +311,8 @@ std::tuple<float, float> getUsage() {
     if (key == "MemAvailable:") freeMem = value;
   }
 
-  uint32_t totalKb = std::stoi(totalMem);
-  uint32_t freeKb = std::stoi(freeMem);
+  std::uint32_t totalKb = std::stoi(totalMem);
+  std::uint32_t freeKb = std::stoi(freeMem);
   constexpr float gb = 1024 * 1024;
   float totalGb = totalKb / gb;
   float usedGb = (totalKb - freeKb) / gb;
@@ -333,13 +350,13 @@ int previousIdleTime, previousTotalTime;
 void loadTimes(int& idleTime, int& totalTime) {
   std::ifstream line("/proc/stat");
   line.ignore(5, ' ');  // skip "cpu" prefix.
-  std::vector<size_t> times;
+  std::vector<std::size_t> times;
   int value;
   while (line >> value) times.emplace_back(value);
   idleTime = times[3];
   totalTime = std::accumulate(times.begin(), times.end(), 0);
 }
-uint8_t getUsage() {
+std::uint8_t getUsage() {
   if (!previousIdleTime) loadTimes(previousIdleTime, previousTotalTime);
   int idleTime, totalTime;
   loadTimes(idleTime, totalTime);
@@ -347,14 +364,14 @@ uint8_t getUsage() {
   const float totalDifference = totalTime - previousTotalTime;
   previousIdleTime = idleTime;
   previousTotalTime = totalTime;
-  uint8_t percentage =
+  std::uint8_t percentage =
       std::floor((100 * (1 - (idleDifference / totalDifference))));
   return percentage;
 }
 
 struct Sensor {
   std::string name;
-  uint8_t temperature;
+  std::uint8_t temperature;
 };
 std::vector<Sensor> getTemperatureSensors() {
   std::vector<Sensor> result;
@@ -369,7 +386,7 @@ std::vector<Sensor> getTemperatureSensors() {
         std::string temp;
         std::getline(nameFile, name);
         std::getline(tempFile, temp);
-        uint8_t celsius = std::stoi(temp) / 1000;
+        std::uint8_t celsius = std::stoi(temp) / 1000;
         result.push_back({name, celsius});
       }
     };
@@ -391,7 +408,7 @@ void update() {
                          sensors[0].name + ")");
 
   std::string tooltip;
-  for (size_t index = 0; index < sensors.size(); ++index) {
+  for (std::size_t index = 0; index < sensors.size(); ++index) {
     tooltip += sensors[index].name + ": " +
                std::to_string(sensors[index].temperature) + "°C";
     if (index < sensors.size() - 1) tooltip += "\n";
@@ -624,4 +641,4 @@ Panel::~Panel() {
   Audio::destroy();
 }
 
-EXPORT_EXTENSION(Panel)
+extern "C" Extension* createExtension() { return new Panel() ; }

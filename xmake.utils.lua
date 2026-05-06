@@ -4,6 +4,7 @@ function setup()
     set_defaultmode("debug")
     add_rules("mode.debug", "mode.release")
     add_cxxflags("-Wno-absolute-value")
+    add_rules("c++.build.modules")
 
     if is_mode("debug") then
         add_defines("DEV")
@@ -31,6 +32,11 @@ function set_extension(extName)
     set_prefixname("")
 
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "glaze")
+
+    -- Reuse system-ui module BMIs instead of recompiling
+    set_policy("build.c++.modules.reuse", true)
+    add_files("../../src/**.cppm")
+    add_packages("cairo", "libwebp", "libjpeg", "librsvg-2.0", "libpipewire-0.3")
 
     if is_mode("debug") then
         add_defines('EXT_DIR="' .. os.scriptdir() .. '"')

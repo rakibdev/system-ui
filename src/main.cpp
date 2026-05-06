@@ -1,9 +1,9 @@
 #include <iostream>
 
-#include "config.h"
-#include "daemon.h"
-#include "utils/argparser.h"
-#include "utils/log.h"
+import config;
+import daemon;
+import argparser;
+import log;
 
 void usage() {
   Log::Table content = {
