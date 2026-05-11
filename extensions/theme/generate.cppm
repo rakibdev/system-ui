@@ -34,7 +34,6 @@ export std::string colorFromImage(const std::string& imagePath) {
   if (extension == ".webp") surface = createSurfaceFromWebP(imagePath);
   else if (extension == ".jpg" || extension == ".jpeg") surface = createSurfaceFromJpeg(imagePath);
   else if (extension == ".png") surface = createSurfaceFromPng(imagePath);
-  else if (extension == ".svg") surface = createSurfaceFromSvg(imagePath);
   else { std::cerr << "Unsupported image format: " << extension << "\n"; return ""; }
 
   cairo_status_t status = cairo_surface_status(surface);

@@ -1,0 +1,10 @@
+[Unit]
+Description=system-ui daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/ui --serve
+
+[Install]
+WantedBy=graphical-session.target

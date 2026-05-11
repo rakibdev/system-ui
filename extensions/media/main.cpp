@@ -5,16 +5,14 @@ import log;
 import std;
 
 void usage() {
-  Log::Table content = {
-      {"media", "list", "List available players"},
-      {"media", "play-pause|next|previous", "Control playback"},
-      {"media", "progress <value>", "Set progress percentage"},
-      {"media", "<command> --player <name>", "Target specific player"},
-      {""},
-      {"e.g."},
-      {"media list"},
-      {"media play-pause"}};
-  Log::table(content);
+  std::println("  {:<35} {}", "media list", "List available players");
+  std::println("  {:<35} {}", "media play-pause|next|previous", "Control playback");
+  std::println("  {:<35} {}", "media progress <value>", "Set progress percentage");
+  std::println("  {:<35} {}", "media <command> --player <name>", "Target specific player");
+  std::println("");
+  std::println("  e.g.");
+  std::println("  media list");
+  std::println("  media play-pause");
 }
 
 std::string getPlayerName(const std::string& bus) {
@@ -47,11 +45,10 @@ int main(int argc, char* argv[]) {
       else if (player->status == PlayerService::Stopped)
         status = "Stopped";
 
-      std::cout << "Player: " << getPlayerName(player->bus) << std::endl;
-      std::cout << "Status: " << status << std::endl;
-      std::cout << "Title: " << (player->title.empty() ? "-" : player->title)
-                << std::endl;
-      std::cout << std::endl;
+      std::println("Player: {}", getPlayerName(player->bus));
+      std::println("Status: {}", status);
+      std::println("Title: {}", player->title.empty() ? "-" : player->title);
+      std::println("");
     }
     return 0;
   }

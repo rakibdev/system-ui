@@ -1,10 +1,7 @@
 module;
-#include <arpa/inet.h>
 #include <gio/gio.h>
 #include <gtk/gtk.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <glaze/glaze.hpp>
@@ -22,18 +19,14 @@ import log;
 export namespace Daemon {
 extern ExtensionManager manager;
 int request(const std::string& content);
-void initialize(bool serve = false);
+void initialize();
 }
 
 namespace Daemon {
 GIOChannel* channel;
-int httpServer = -1;
-bool serveHttp = false;
-
 ExtensionManager manager;
 
 void destroy(int code) {
-  if (httpServer >= 0) close(httpServer);
   if (channel) {
     g_io_channel_shutdown(channel, true, nullptr);
     g_io_channel_unref(channel);
@@ -163,118 +156,19 @@ int request(const std::string& command) {
   return 1;
 }
 
-void runInBackground() {
-  pid_t pid = fork();
-  if (pid < 0) exit(EXIT_FAILURE);
-  if (pid > 0) exit(EXIT_SUCCESS);
-  umask(0);
-  setsid();
-  close(STDIN_FILENO);
-  close(STDOUT_FILENO);
-  close(STDERR_FILENO);
-}
-
 void onTerminateBySystem(int) { destroy(EXIT_SUCCESS); }
 
-std::string urlDecode(const std::string& str) {
-  std::string result;
-  for (std::size_t i = 0; i < str.size(); ++i) {
-    if (str[i] == '%' && i + 2 < str.size()) {
-      result += static_cast<char>(std::stoi(str.substr(i + 1, 2), nullptr, 16));
-      i += 2;
-    } else if (str[i] == '+')
-      result += ' ';
-    else
-      result += str[i];
-  }
-  return result;
-}
-
-void onHttpRequest(int client) {
-  char buffer[4096];
-  ssize_t n = recv(client, buffer, sizeof(buffer) - 1, 0);
-  if (n <= 0) { close(client); return; }
-  buffer[n] = '\0';
-
-  std::string req(buffer);
-  if (!req.starts_with("GET /")) { close(client); return; }
-  std::size_t pathEnd = req.find(" HTTP");
-  if (pathEnd == std::string::npos) { close(client); return; }
-
-  std::string path = urlDecode(req.substr(5, pathEnd - 5));
-  std::size_t space = path.find(' ');
-  std::string extName = space != std::string::npos ? path.substr(0, space) : path;
-  std::string args = space != std::string::npos ? path.substr(space + 1) : "";
-
-  Extension* ext = nullptr;
-  for (auto& [p, e] : manager.extensions) {
-    if (p.find("/" + extName + "/") != std::string::npos) { ext = e.get(); break; }
-  }
-
-  std::string body;
-  int status = 200;
-  if (extName == "theme") {
-    body = glz::write_json(systemUiConfig.get().theme).value_or("{}");
-  } else if (!ext) {
-    body = R"({"error":"not loaded"})";
-    status = 404;
-  } else {
-    auto response = ext->onRequest(args);
-    body = response.content;
-    if (response.status) status = 400;
-  }
-
-  std::string headers = "HTTP/1.1 " + std::to_string(status) +
-                        " OK\r\nContent-Type: application/json\r\n"
-                        "Access-Control-Allow-Origin: *\r\nContent-Length: " +
-                        std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n";
-  send(client, headers.c_str(), headers.size(), 0);
-  send(client, body.c_str(), body.size(), 0);
-  close(client);
-}
-
-void startHttpServer() {
-  httpServer = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-  if (httpServer < 0) return;
-  int opt = 1;
-  setsockopt(httpServer, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  sockaddr_in addr{};
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(7780);
-  if (bind(httpServer, (sockaddr*)&addr, sizeof(addr)) < 0) {
-    Log::error("HTTP server: port 7780 in use");
-    close(httpServer);
-    httpServer = -1;
-    return;
-  }
-  listen(httpServer, 10);
-  Log::info("HTTP server: localhost:7780");
-  GIOChannel* httpChannel = g_io_channel_unix_new(httpServer);
-  g_io_add_watch(httpChannel, G_IO_IN,
-                 [](GIOChannel* ch, GIOCondition, gpointer) -> gboolean {
-                   int client = accept(g_io_channel_unix_get_fd(ch), nullptr, nullptr);
-                   if (client >= 0) std::thread(onHttpRequest, client).detach();
-                   return TRUE;
-                 },
-                 nullptr);
-  g_io_channel_unref(httpChannel);
-}
-
-void initialize(bool serve) {
-  serveHttp = serve;
-#ifndef DEV
-  runInBackground();
-  prepareDir(LOG_FILE);
-  Log::saveInFile = LOG_FILE;
-#endif
+void initialize() {
   startServer();
   std::signal(SIGTERM, onTerminateBySystem);
   g_setenv("GDK_BACKEND", "wayland", true);
   gtk_init(nullptr, nullptr);
+#ifdef DEV
   cssManager->add(shareDir + "/src/default.css");
+#else
+  cssManager->add(shareDir + "/default.css");
+#endif
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
-  if (serveHttp) startHttpServer();
   gtk_main();
 }
 }

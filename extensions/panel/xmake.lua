@@ -3,8 +3,6 @@ includes("../../xmake.libs.lua")
 
 setup()
 
-add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", {system = true})
-
 target("panel")
     set_extension("panel")
     add_files("*.cpp", "*.cppm")

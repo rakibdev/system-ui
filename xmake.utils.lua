@@ -8,24 +8,25 @@ function setup()
 
     if is_mode("debug") then
         add_defines("DEV")
-        add_defines('SHARE_DIR="' .. os.projectdir() .. '"')
-    else
-        add_defines('SHARE_DIR="/usr/share/system-ui"')
     end
 end
 
 function set_build_dir()
-    set_targetdir("build")
+    set_targetdir(os.projectdir() .. "/build")
+end
+
+function sdk(path)
+    return os.projectdir() .. "/src/" .. path
 end
 
 function set_extension(extName)
     set_kind("shared")
-    set_targetdir("build")
+    set_targetdir(os.projectdir() .. "/build")
 
     -- Fixes linking relocation for .so extensions.
     add_cxxflags("-fPIC")
 
-    add_linkdirs("../../build/")
+    add_linkdirs(os.projectdir() .. "/build")
     add_links("system-ui")
 
     -- Remove "lib" prefix
@@ -38,9 +39,5 @@ function set_extension(extName)
     add_files("../../src/**.cppm")
     add_packages("cairo", "libwebp", "libjpeg", "librsvg-2.0", "libpipewire-0.3")
 
-    if is_mode("debug") then
-        add_defines('EXT_DIR="' .. os.scriptdir() .. '"')
-    else
-        add_defines('EXT_DIR="/usr/share/' .. (extName or "system-ui") .. '"')
-    end
+    add_defines('EXT_DIR="' .. os.scriptdir() .. '"')
 end

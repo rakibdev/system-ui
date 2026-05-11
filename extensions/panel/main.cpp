@@ -241,8 +241,8 @@ void destroy() { tile = nullptr; }
 
 namespace NightLightTile {
 Tile* tile;
-std::string nightLightShader = shareDir + "/shaders/night-light.frag";
-std::string resetShader = shareDir + "/shaders/reset.frag";
+std::string nightLightShader = std::string(EXT_DIR) + "/assets/shaders/night-light.frag";
+std::string resetShader = std::string(EXT_DIR) + "/assets/shaders/reset.frag";
 
 void update() {
   std::string error;

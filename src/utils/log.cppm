@@ -1,3 +1,6 @@
+module;
+#include <unistd.h>
+
 export module log;
 
 import std;
@@ -12,8 +15,6 @@ constexpr const char* yellow = "\033[0;33m";
 constexpr const char* pink = "\033[0;35m";
 constexpr const char* green = "\033[0;32m";
 
-extern std::string saveInFile;
-
 using Table = std::vector<std::vector<std::string>>;
 
 void info(std::string_view message, const std::source_location& location =
@@ -25,43 +26,18 @@ void warn(std::string_view message, const std::source_location& location =
 void table(Table value);
 }
 
-export class CaptureOutput {
-  std::ostream& stream;
-  std::streambuf* previous;
-  std::stringstream buffer;
-
- public:
-  CaptureOutput(std::ostream& stream);
-  ~CaptureOutput();
-  std::string value();
-};
-
 namespace Log {
-std::string saveInFile;
-
-std::string getTime() {
-  std::time_t now;
-  std::time(&now);
-  char time[80];
-  std::strftime(time, sizeof(time), "%I:%M", std::localtime(&now));
-  return time;
-}
+const bool tty = isatty(STDOUT_FILENO);
 
 void write(std::string_view type, std::string_view color,
            std::string_view message, const std::source_location& location) {
-  if (saveInFile.empty()) {
-    auto& output = (type == "error" || type == "warn") ? std::cerr : std::cout;
-    output << color << type << ": ";
-    if (type != "info")
-      output << gray << std::filesystem::path(location.file_name()).filename() << ": ";
-    output << colorOff << message << std::endl;
-  } else {
-    std::ofstream file(saveInFile, std::ios::app);
-    file << getTime() << ' ' << type << ": ";
-    if (type != "info")
-      file << std::filesystem::path(location.file_name()).filename() << ": ";
-    file << message << std::endl;
-  }
+  auto& output = (type == "error" || type == "warn") ? std::cerr : std::cout;
+  if (tty) output << color << type << ": ";
+  else output << type << ": ";
+  if (type != "info")
+    output << (tty ? gray : "") << std::filesystem::path(location.file_name()).filename() << ": ";
+  if (tty) output << colorOff;
+  output << message << "\n";
 }
 
 void info(std::string_view message, const std::source_location& location) {
@@ -97,17 +73,13 @@ void table(Table value) {
     for (int column = 0; column < rowSize; column++) {
       std::cout << std::left;
       if (column == 0) std::cout << "  ";
-      if (column < 3) std::cout << colors[column];
-      std::cout << std::setw(widths[column] + gap) << row[column] << colorOff;
+      if (tty && column < 3) std::cout << colors[column];
+      std::cout << std::setw(widths[column] + gap) << row[column];
+      if (tty) std::cout << colorOff;
     }
-    std::cout << std::endl;
+    std::cout << "\n";
   }
 }
 }
 
-CaptureOutput::CaptureOutput(std::ostream& stream)
-    : stream(stream), previous(stream.rdbuf()) {
-  stream.rdbuf(buffer.rdbuf());
-}
-CaptureOutput::~CaptureOutput() { stream.rdbuf(previous); }
-std::string CaptureOutput::value() { return buffer.str(); }
+

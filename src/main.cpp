@@ -1,14 +1,11 @@
 #include <iostream>
 
-import config;
 import daemon;
 import argparser;
 import log;
 
 void usage() {
   Log::Table content = {
-      {"daemon", "", "Start background service."},
-      {"stop", "daemon", "Stop background service."},
       {"", "--css <path> [path...]", "CSS files."},
       {"", "--watch", "Enable file watching for CSS changes."},
       {""},
@@ -18,8 +15,8 @@ void usage() {
       {"e.g."},
       {"launcher.so"},
       {"stop launcher"},
-      {""},
-      {"Daemon Logs:", "", LOG_FILE}};
+      {""}};
+
   Log::table(content);
 }
 
@@ -37,25 +34,16 @@ int main(int argc, char* argv[]) {
     command += argv[i];
   }
 
-  int status = 0;
-  std::string output;
-  {
-    CaptureOutput capture(std::cout);
-    status = Daemon::request(command);
-    output = capture.value();
+  if (command == "--serve") {
+    Daemon::initialize();
+    return 0;
   }
 
+  int status = Daemon::request(command);
   if (status > 0) {
-    if (command == "daemon" || command == "daemon --serve") {
-      Log::info("Daemon running.");
-      Daemon::initialize(command.find("--serve") != std::string::npos);
-    } else if (command == "stop daemon") {
-      Log::error("Daemon hasn't been started.");
-      return 1;
-    }
+    Log::error("Daemon not running. Start with: systemctl --user start system-ui");
+    return 1;
   }
-
-  if (!output.empty()) std::cout << output << std::endl;
 
   return status;
 }

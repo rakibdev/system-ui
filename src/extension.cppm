@@ -1,5 +1,6 @@
 module;
 #include <dlfcn.h>
+#include <glib.h>
 
 export module extension;
 
@@ -59,12 +60,24 @@ export class ExtensionManager {
   }
 
   void unload(const std::string& id) {
-    void* handle = extensions[id]->handle;
-    extensions.erase(id);
-    if (dlclose(handle) != 0) Log::info("dlclose failed: " + id);
+    auto node = extensions.extract(id);
+    if (!node) return;
+    struct Data { Extension* ext; void* handle; };
+    Extension* raw = node.mapped().release();
+    g_idle_add([](gpointer data) -> gboolean {
+      auto* d = static_cast<Data*>(data);
+      delete d->ext;
+      dlclose(d->handle);
+      delete d;
+      return G_SOURCE_REMOVE;
+    }, new Data{raw, raw->handle});
   }
 
   ~ExtensionManager() {
-    for (auto& it : extensions) unload(it.first);
+    for (auto& [id, ext] : extensions) {
+      void* handle = ext->handle;
+      ext.reset();
+      dlclose(handle);
+    }
   }
 };
