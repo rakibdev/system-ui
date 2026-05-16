@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="Material 3 theme generator"
 arch=('x86_64')
 license=('MPL-2.0')
-depends=('cairo' 'libwebp' 'libjpeg-turbo')
+depends=('cairo' 'libwebp' 'libjpeg-turbo' 'librsvg')
 makedepends=('xmake')
 
 build() {

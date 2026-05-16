@@ -1,12 +1,16 @@
 .quick-settings {
   border-radius: 24px;
   color: @foreground;
-  background-color: @surface;
+  background-color: alpha(@hover, 0.6);
   padding: 16px;
 }
 
 .quick-settings .tile {
   padding: 16px;
+}
+
+.tile .start-icon label {
+  font-size: 24px;
 }
 
 .quick-settings .tile .title {

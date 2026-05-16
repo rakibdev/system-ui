@@ -6,7 +6,15 @@ module;
 export module audio_dialog;
 
 import std;
-import element;
+import elements.base;
+import elements.box;
+import elements.label;
+import elements.icon;
+import elements.button;
+import elements.slider;
+import elements.event_box;
+import elements.window;
+import elements.menu;
 import audio;
 import debounce;
 import style;

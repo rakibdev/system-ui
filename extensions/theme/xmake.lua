@@ -1,15 +1,12 @@
 includes("../../xmake.utils.lua")
-includes("../../xmake.libs.lua")
-
-setup()
+includes("../../libs/xmake.material.lua")
 
 target("theme")
     set_kind("binary")
-    set_build_dir()
+    build_in_root()
 
-    add_files("*.cpp", "*.cppm")
-    add_files("../../src/**.cppm")
-    set_policy("build.c++.modules.reuse", true)
-    add_deps("system-ui", "material-color-utilities")
+    add_files("main.cpp", "*.cppm")
+    add_files(sdk("utils/argparser.cppm"), sdk("utils/log.cppm"), sdk("utils/image.cppm"))
+    add_deps("material-color-utilities")
 
-    add_packages("gtk+-3.0", "gtk-layer-shell-0", "glaze", "cairo", "libwebp", "libjpeg", "libpipewire-0.3")
+    add_packages("cairo", "libwebp", "libjpeg", "librsvg-2.0")

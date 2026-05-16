@@ -1,12 +1,8 @@
-includes("xmake.utils.lua")
-
-setup()
-
-local materialColorUtilitiesDir = "libs/material-color-utilities"
+local materialColorUtilitiesDir = os.projectdir() .. "/libs/material-color-utilities"
 
 target("material-color-utilities")
     set_kind("static")
-    set_targetdir("build")
+    set_targetdir(os.projectdir() .. "/build")
     add_files(materialColorUtilitiesDir .. "/cpp/utils/utils.cc")
     add_files(materialColorUtilitiesDir .. "/cpp/cam/**.cc")
     add_files(materialColorUtilitiesDir .. "/cpp/quantize/**.cc")

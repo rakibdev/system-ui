@@ -11,7 +11,7 @@ function setup()
     end
 end
 
-function set_build_dir()
+function build_in_root()
     set_targetdir(os.projectdir() .. "/build")
 end
 

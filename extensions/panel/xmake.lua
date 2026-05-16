@@ -1,7 +1,5 @@
 includes("../../xmake.utils.lua")
-includes("../../xmake.libs.lua")
-
-setup()
+includes("../../libs/xmake.material.lua")
 
 target("panel")
     set_extension("panel")

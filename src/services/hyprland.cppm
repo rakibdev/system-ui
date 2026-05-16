@@ -15,7 +15,8 @@ std::string request(std::string command, std::string& error) {
     return "";
   }
 
-  std::string socketFile = "/tmp/hypr/" + signature + "/.socket.sock";
+  std::string runtimeDir = std::getenv("XDG_RUNTIME_DIR");
+  std::string socketFile = runtimeDir + "/hypr/" + signature + "/.socket.sock";
   if (!std::filesystem::exists(socketFile)) {
     error = socketFile + " file not found.";
     return "";

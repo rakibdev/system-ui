@@ -6,7 +6,7 @@ add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo
 
 target("system-ui")
     set_kind("shared")
-    set_build_dir()
+    build_in_root()
     add_rules("c++.build.modules")
     add_files("src/**.cpp", "src/**.cppm")
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0", {public = true})
@@ -18,7 +18,7 @@ target("system-ui")
     end
 
 target("ui")
-    set_build_dir()
+    build_in_root()
     add_deps("system-ui")
     add_rpathdirs("@loader_path")
 

@@ -4,7 +4,7 @@ module;
 
 export module apps;
 
-import element;
+import elements.flowbox;
 
 import icon;
 import image;

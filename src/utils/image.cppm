@@ -121,7 +121,7 @@ export cairo_surface_t* createSurfaceFromSvg(const std::string& path,
   GError* error = nullptr;
   RsvgHandle* handle = rsvg_handle_new_from_file(path.c_str(), &error);
   if (!handle) {
-    if (error) { std::cerr << "Unable to load SVG: " << error->message << std::endl; g_error_free(error); }
+    if (error) { std::println(std::cerr, "Unable to load SVG: {}", error->message); g_error_free(error); }
     return nullptr;
   }
 

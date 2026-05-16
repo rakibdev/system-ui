@@ -5,7 +5,15 @@ module;
 
 export module ui;
 
-import element;
+import elements.base;
+import elements.box;
+import elements.label;
+import elements.icon;
+import elements.input;
+import elements.flowbox;
+import elements.event_box;
+import elements.window;
+import elements.menu;
 import extension;
 import config;
 import daemon;

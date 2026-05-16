@@ -7,7 +7,13 @@ module;
 export module media_controls_ext;
 
 import std;
-import element;
+import elements.base;
+import elements.box;
+import elements.label;
+import elements.icon;
+import elements.button;
+import elements.slider;
+import elements.event_box;
 import media;
 import debounce;
 import config;

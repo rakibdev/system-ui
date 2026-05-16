@@ -4,7 +4,12 @@ module;
 export module notifications_ext;
 
 import std;
-import element;
+import elements.base;
+import elements.box;
+import elements.label;
+import elements.icon;
+import elements.event_box;
+import elements.window;
 import notifications;
 import transition;
 

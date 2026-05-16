@@ -2,7 +2,7 @@
   padding: 4px;
   border-radius: 24px;
   color: @foreground;
-  background-color: @surface;
+  background-color: alpha(@hover, 0.6);
 }
 
 .launcher .search {
@@ -47,7 +47,7 @@
 }
 
 .launcher .app .name {
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 8px;
 }
 

@@ -7,20 +7,18 @@ import generate;
 import std;
 
 void usage() {
-  Log::Table content = {
-      {"--color <hex|image-path>"},
-      {"", "--color \"#ff5722\""},
-      {"", "--color \"./image.png|jpg|webp\""},
-      {""},
-
-      {"--template <file>", "", "Template file with variables."},
-      {"", "--template config.css"},
-      {"", "--template config.css > replaced.css", "Output to file"},
-      {""},
-
-      {"--css", "", "Output CSS template (default: JSON)"},
-      {"--light", "", "Use light mode (default: dark)"}};
-  Log::table(content);
+  std::println("  {:<38} {}", "--color <hex|image-path>", "");
+  std::println("  {:<38} {}", "  --color \"#ff5722\"", "");
+  std::println("  {:<38} {}", "  --color \"./image.png\"", "");
+  std::println("");
+  std::println("  {:<38} {}", "--template <file>",
+               "Template file with variables.");
+  std::println("  {:<38} {}", "  --template config.css", "");
+  std::println("  {:<38} {}", "  --template config.css > replaced.css",
+               "Output to file");
+  std::println("");
+  std::println("  {:<38} {}", "--css", "Output CSS template (default: JSON)");
+  std::println("  {:<38} {}", "--light", "Use light mode (default: dark)");
 }
 
 std::string processTemplate(std::string_view templateContent,
@@ -76,7 +74,7 @@ int main(int argc, char* argv[]) {
 
   if (!templatePath.empty()) {
     if (!std::filesystem::exists(templatePath)) {
-      std::cerr << "Unable to find template: " << templatePath << "\n";
+      std::println(std::cerr, "Unable to find template: {}", templatePath);
       return 1;
     }
 
@@ -84,11 +82,11 @@ int main(int argc, char* argv[]) {
     std::stringstream buffer;
     buffer << file.rdbuf();
 
-    std::cout << processTemplate(buffer.str(), palette);
+    std::print(std::cout, "{}", processTemplate(buffer.str(), palette));
   } else if (outputCss) {
-    std::cout << generateCss(palette);
+    std::print(std::cout, "{}", generateCss(palette));
   } else {
-    std::cout << generateJson(palette);
+    std::print(std::cout, "{}", generateJson(palette));
   }
 
   return 0;

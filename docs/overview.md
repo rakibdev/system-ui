@@ -14,8 +14,8 @@ system-ui/
 ├── run                                    # Bash helper: builds & runs extensions
 ├── theme-bin                              # Compiled theme binary
 ├── xmake.lua                              # Root build → targets: system-ui (shared) + ui (cli)
-├── xmake.libs.lua                         # Build: material-color-utilities static lib
-├── xmake.utils.lua                        # Shared build helpers (setup, set_build_dir, set_extension)
+├── xmake.material.lua                         # Build: material-color-utilities static lib
+├── xmake.utils.lua                        # Shared build helpers (setup, build_in_root, set_extension)
 │
 ├── libs/
 │   └── material-color-utilities/          # Git submodule — Google Material Color Utilities (C++)
@@ -107,7 +107,7 @@ system-ui/
 -- Target: shared library
 target("system-ui")
     set_kind("shared")
-    set_build_dir()
+    build_in_root()
     add_files("src/**.cpp")
     add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3",
                   "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0")
@@ -119,7 +119,7 @@ target("system-ui")
 
 -- Target: CLI binary
 target("ui")
-    set_build_dir()
+    build_in_root()
     add_deps("system-ui")
     add_rpathdirs("@loader_path")
 ```
@@ -150,7 +150,7 @@ function set_extension(extName)
 end
 ```
 
-### 2.4 Static Lib: `xmake.libs.lua`
+### 2.4 Static Lib: `xmake.material.lua`
 
 ```lua
 target("material-color-utilities")
@@ -166,17 +166,17 @@ target("material-color-utilities")
 
 ### 2.5 All Dependencies
 
-| Package | System | Used By |
-|---------|--------|---------|
-| `gtk+-3.0` | ✅ | Core, all extensions |
-| `gtk-layer-shell-0` | ✅ | Core (Window), panel, launcher |
-| `libpipewire-0.3` | ✅ | Core (audio service), panel |
-| `glaze` | ✅ | Core (JSON config), launcher |
-| `cairo` | ✅ | Core (image utils), theme |
-| `libwebp` | ✅ | Core (image utils), theme |
-| `libjpeg` | ✅ | Core (image utils), theme |
-| `librsvg-2.0` | ✅ | Core (image utils), theme |
-| `glib` | ✅ | media binary |
+| Package             | System | Used By                        |
+| ------------------- | ------ | ------------------------------ |
+| `gtk+-3.0`          | ✅     | Core, all extensions           |
+| `gtk-layer-shell-0` | ✅     | Core (Window), panel, launcher |
+| `libpipewire-0.3`   | ✅     | Core (audio service), panel    |
+| `glaze`             | ✅     | Core (JSON config), launcher   |
+| `cairo`             | ✅     | Core (image utils), theme      |
+| `libwebp`           | ✅     | Core (image utils), theme      |
+| `libjpeg`           | ✅     | Core (image utils), theme      |
+| `librsvg-2.0`       | ✅     | Core (image utils), theme      |
+| `glib`              | ✅     | media binary                   |
 
 ---
 
@@ -184,33 +184,33 @@ target("material-color-utilities")
 
 ### 3.1 C++ Modules Check
 
-| Keyword | Occurrences |
-|---------|-------------|
-| `export` | **0** ❌ |
-| `import` | **0** ❌ |
-| `module` | **0** ❌ |
+| Keyword  | Occurrences |
+| -------- | ----------- |
+| `export` | **0** ❌    |
+| `import` | **0** ❌    |
+| `module` | **0** ❌    |
 
 > **The project uses traditional `#pragma once` headers throughout.** No C++20 modules are used despite the `c++26` language setting.
 
 ### 3.2 Precompiled Headers
 
-| File | Status |
-|------|--------|
-| `*.pch` | **None** ❌ |
-| `stdafx.h` / `stdafx.cpp` | **None** ❌ |
+| File                          | Status      |
+| ----------------------------- | ----------- |
+| `*.pch`                       | **None** ❌ |
+| `stdafx.h` / `stdafx.cpp`     | **None** ❌ |
 | PCH references in build files | **None** ❌ |
 
 ### 3.3 Header Count by Directory
 
-| Directory | `.h` Files | `.cpp` Files |
-|-----------|-----------|-------------|
-| `src/` | 5 | 5 |
-| `src/services/` | 6 | 6 |
-| `src/utils/` | 10 | 7 |
-| `extensions/panel/` | 4 | 4 |
-| `extensions/launcher/` | 2 | 2 |
-| `extensions/theme/` | 3 | 4 |
-| **Total** | **30** `.h` | **28** `.cpp` (+ 2 `.cc` in lib) |
+| Directory              | `.h` Files  | `.cpp` Files                     |
+| ---------------------- | ----------- | -------------------------------- |
+| `src/`                 | 5           | 5                                |
+| `src/services/`        | 6           | 6                                |
+| `src/utils/`           | 10          | 7                                |
+| `extensions/panel/`    | 4           | 4                                |
+| `extensions/launcher/` | 2           | 2                                |
+| `extensions/theme/`    | 3           | 4                                |
+| **Total**              | **30** `.h` | **28** `.cpp` (+ 2 `.cc` in lib) |
 
 ### 3.4 Key Header Relationships
 
@@ -270,12 +270,14 @@ extension.h (base for plugins)
 ```
 
 **Extension lifecycle:**
+
 1. `dlopen(path, RTLD_NOW)` — loads `.so`
 2. `dlsym(handle, "createExtension")` — finds factory
 3. `manager.add(path, unique_ptr<Extension>(createExtension()))` — stores
 4. On unload: `extensions.erase(id)` (triggers destructor), then `dlclose`
 
 **Macro for exporting:**
+
 ```cpp
 #define EXPORT_EXTENSION(ExtensionClass) \
   extern "C" Extension* createExtension() { return new ExtensionClass() ; }
@@ -307,29 +309,29 @@ Element (virtual destructor)
 
 ### 4.3 Service Layer (D-Bus + PipeWire)
 
-| Service | Technology | Provides |
-|---------|-----------|----------|
-| `Audio` | **PipeWire** | Sinks, sources, volume control, default device |
-| `Bluetooth` | **D-Bus (BlueZ)** | Device discovery, connect/disconnect, battery |
-| `Media` | **D-Bus (MPRIS)** | Players, play/pause/next/prev, progress |
-| `Network` | **D-Bus (NetworkManager)** | Connection status, ethernet info |
-| `Notifications` | **D-Bus (freedesktop)** | Notification list, actions, urgency |
-| `Hyprland` | **IPC socket** | Window manager commands (e.g., night light) |
+| Service         | Technology                 | Provides                                       |
+| --------------- | -------------------------- | ---------------------------------------------- |
+| `Audio`         | **PipeWire**               | Sinks, sources, volume control, default device |
+| `Bluetooth`     | **D-Bus (BlueZ)**          | Device discovery, connect/disconnect, battery  |
+| `Media`         | **D-Bus (MPRIS)**          | Players, play/pause/next/prev, progress        |
+| `Network`       | **D-Bus (NetworkManager)** | Connection status, ethernet info               |
+| `Notifications` | **D-Bus (freedesktop)**    | Notification list, actions, urgency            |
+| `Hyprland`      | **IPC socket**             | Window manager commands (e.g., night light)    |
 
 ### 4.4 Utility Layer (Header-only highlights)
 
-| Utility | Type | Description |
-|---------|------|-------------|
-| `ArgParser` | 🏗️ Header-only | Command-line argument parser |
-| `StorageManager<T>` | 🏗️ Header-only | JSON file persistence via glaze |
-| `EventManager` | 🏗️ Header-only | Typed event system (string + type_index keys) |
-| `Style` | 🏗️ Header-only | GTK CSS provider wrapper |
-| `Log` | ⚙️ + Header | Logging with `std::source_location` |
-| `CssManager` | ⚙️ | CSS file watching + rebuild |
-| `Debounce` | ⚙️ | Timer debouncing |
-| `FileWatcher` | ⚙️ | GFileMonitor wrapper |
-| `PropertyTransition` | ⚙️ | Value interpolation with easing |
-| `Image` | ⚙️ | Cairo surface from WebP/JPEG/PNG/SVG |
+| Utility              | Type           | Description                                   |
+| -------------------- | -------------- | --------------------------------------------- |
+| `ArgParser`          | 🏗️ Header-only | Command-line argument parser                  |
+| `StorageManager<T>`  | 🏗️ Header-only | JSON file persistence via glaze               |
+| `EventManager`       | 🏗️ Header-only | Typed event system (string + type_index keys) |
+| `Style`              | 🏗️ Header-only | GTK CSS provider wrapper                      |
+| `Log`                | ⚙️ + Header    | Logging with `std::source_location`           |
+| `CssManager`         | ⚙️             | CSS file watching + rebuild                   |
+| `Debounce`           | ⚙️             | Timer debouncing                              |
+| `FileWatcher`        | ⚙️             | GFileMonitor wrapper                          |
+| `PropertyTransition` | ⚙️             | Value interpolation with easing               |
+| `Image`              | ⚙️             | Cairo surface from WebP/JPEG/PNG/SVG          |
 
 ### 4.5 Configuration & Themimg
 
@@ -340,6 +342,7 @@ struct Config {
 ```
 
 **Theme generation** (Material 3 / Material You):
+
 1. Source color from wallpaper image
 2. `MaterialColors::createDynamicPalette(sourceColor, dark)` produces:
    - `foreground`, `mutedForeground`, `background`, `card`, `popover`
@@ -349,11 +352,13 @@ struct Config {
 ### 4.6 IPC Communication
 
 **Unix Domain Socket** (primary):
+
 - Path: `/tmp/system-ui/daemon.sock`
 - JSON request/response format: `{"content": "...", "status": N}`
 - CLI sends commands, daemon processes, returns response
 
 **HTTP Server** (optional, `--serve` flag):
+
 - Port: `localhost:7780`
 - GET requests routed to loaded extensions by name
 - Used for web-based control/debugging
@@ -364,32 +369,32 @@ struct Config {
 
 ### 5.1 Panel (`extensions/panel/`)
 
-| File | Purpose |
-|------|---------|
-| `main.h/cpp` | Panel Extension — creates layer-shell window, audio/media/notifications sections |
-| `audio-dialog.h/cpp` | Audio device selector popup |
-| `media-controls.h/cpp` | MPRIS player widget (thumbnail, title, artist, slider) |
-| `notifications.h/cpp` | Notification popups management |
+| File                   | Purpose                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `main.h/cpp`           | Panel Extension — creates layer-shell window, audio/media/notifications sections |
+| `audio-dialog.h/cpp`   | Audio device selector popup                                                      |
+| `media-controls.h/cpp` | MPRIS player widget (thumbnail, title, artist, slider)                           |
+| `notifications.h/cpp`  | Notification popups management                                                   |
 
 **Submodules used:** `theme/theme.cpp`, `theme/color.cpp`, `theme/material.cpp`, `material-color-utilities`
 
 ### 5.2 Launcher (`extensions/launcher/`)
 
-| File | Purpose |
-|------|---------|
-| `main.h/cpp` | Launcher Extension — app grid with search, pinning |
-| `drag-drop.h/cpp` | Drag-and-drop for pinning/reordering apps |
+| File              | Purpose                                            |
+| ----------------- | -------------------------------------------------- |
+| `main.h/cpp`      | Launcher Extension — app grid with search, pinning |
+| `drag-drop.h/cpp` | Drag-and-drop for pinning/reordering apps          |
 
 **Data:** Reads `.desktop` files, caches in `AppCache` (JSON), supports context menu (`AppAction`).
 
 ### 5.3 Theme (`extensions/theme/`)
 
-| File | Purpose |
-|------|---------|
-| `main.cpp` | Standalone binary — extracts dominant color from image |
-| `theme.h/cpp` | `colorFromImage()`, `generateJson()`, `generateCss()` |
+| File             | Purpose                                                                       |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `main.cpp`       | Standalone binary — extracts dominant color from image                        |
+| `theme.h/cpp`    | `colorFromImage()`, `generateJson()`, `generateCss()`                         |
 | `material.h/cpp` | Material 3 dynamic palette creation (primary/secondary/surface/text variants) |
-| `color.h/cpp` | Hex ↔ ARGB conversion, validation |
+| `color.h/cpp`    | Hex ↔ ARGB conversion, validation                                             |
 
 **Dependencies:** Cairo, WebP, JPEG, librsvg, material-color-utilities
 
@@ -405,20 +410,20 @@ Extension for rendering themed icon SVGs with dynamic colors.
 
 ## 6. Summary Table
 
-| Aspect | Status |
-|--------|--------|
-| **C++ Standard** | 🟢 C++26 (`set_languages("c++26")`) |
-| **Compiler** | 🟢 Clang |
-| **Build System** | 🟢 xmake (Lua) |
-| **C++20 Modules** | 🔴 Not used (0 occurrences of `export`/`import`/`module`) |
-| **Precompiled Headers** | 🔴 None |
-| **Header Style** | 🟢 `#pragma once` everywhere |
-| **Plugin System** | 🟢 `dlopen`/`dlsym` shared library extensions |
-| **IPC** | 🟢 Unix socket + HTTP server |
-| **JSON** | 🟢 glaze library |
-| **UI** | 🟢 GTK3 + gtk-layer-shell (Wayland) |
-| **Audio** | 🟢 PipeWire |
-| **D-Bus Services** | 🟢 BlueZ, MPRIS, NetworkManager, Notifications |
-| **Theming** | 🟢 Material Color Utilities (Google) |
-| **Testing** | 🔴 No test framework found |
-| **Submodules** | 🟢 `material-color-utilities` (Git) |
+| Aspect                  | Status                                                    |
+| ----------------------- | --------------------------------------------------------- |
+| **C++ Standard**        | 🟢 C++26 (`set_languages("c++26")`)                       |
+| **Compiler**            | 🟢 Clang                                                  |
+| **Build System**        | 🟢 xmake (Lua)                                            |
+| **C++20 Modules**       | 🔴 Not used (0 occurrences of `export`/`import`/`module`) |
+| **Precompiled Headers** | 🔴 None                                                   |
+| **Header Style**        | 🟢 `#pragma once` everywhere                              |
+| **Plugin System**       | 🟢 `dlopen`/`dlsym` shared library extensions             |
+| **IPC**                 | 🟢 Unix socket + HTTP server                              |
+| **JSON**                | 🟢 glaze library                                          |
+| **UI**                  | 🟢 GTK3 + gtk-layer-shell (Wayland)                       |
+| **Audio**               | 🟢 PipeWire                                               |
+| **D-Bus Services**      | 🟢 BlueZ, MPRIS, NetworkManager, Notifications            |
+| **Theming**             | 🟢 Material Color Utilities (Google)                      |
+| **Testing**             | 🔴 No test framework found                                |
+| **Submodules**          | 🟢 `material-color-utilities` (Git)                       |

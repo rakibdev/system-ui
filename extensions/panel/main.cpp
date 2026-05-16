@@ -1,7 +1,15 @@
 #include <gtk/gtk.h>
 #include <gtk-layer-shell.h>
 
-import element;
+import elements.base;
+import elements.box;
+import elements.label;
+import elements.icon;
+import elements.button;
+import elements.flowbox;
+import elements.event_box;
+import elements.slider;
+import elements.window;
 import extension;
 import config;
 import audio;
@@ -499,7 +507,7 @@ void Panel::createWindow() {
   if (window) return;
 
   window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL,
-                                    GTK_LAYER_SHELL_KEYBOARD_MODE_NONE);
+                                    GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
   gtk_layer_set_namespace((GtkWindow*)window->widget, "panel");
   window->addClass("panel");
 

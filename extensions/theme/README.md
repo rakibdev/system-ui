@@ -1,26 +1,21 @@
-## Build & Run
-
 ```bash
 xmake f -m release && xmake -P .
-./build/theme --color "#ff5722"
+./build/theme --color "#ff0062"
 ```
 
 ## Dependencies
-
-This tool requires the following system libraries:
 
 - **cairo**: For image surface handling
 - **libwebp**: For WebP image support
 - **libjpeg-turbo**: For JPEG/JPG image support
 
-## Variables
+## Template Variables
 
-Use in templates with `{variable}` format:
-
-- `{foreground}` `{background}` `{card}` `{popover}` `{hover}`
+- `{foreground}` `{mutedForeground}` `{background}`
+- `{card}` `{popover}` `{hover}`
 - `{primary}` `{primaryForeground}` `{secondary}` `{secondaryForeground}`
 - `{border}`
 
-### Variants
+### Color Formats
 
 - `{variable.hexDigits}` - Hex color without the `#` prefix

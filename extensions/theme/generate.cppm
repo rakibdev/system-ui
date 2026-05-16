@@ -14,6 +14,7 @@ export const std::string defaultColor = MaterialColors::primary;
 
 export std::map<std::string, std::string> paletteToMap(const MaterialColors::DynamicPalette& palette) {
   return {{"foreground", palette.foreground},
+          {"mutedForeground", palette.mutedForeground},
           {"background", palette.background},
           {"card", palette.card},
           {"popover", palette.popover},
@@ -34,11 +35,11 @@ export std::string colorFromImage(const std::string& imagePath) {
   if (extension == ".webp") surface = createSurfaceFromWebP(imagePath);
   else if (extension == ".jpg" || extension == ".jpeg") surface = createSurfaceFromJpeg(imagePath);
   else if (extension == ".png") surface = createSurfaceFromPng(imagePath);
-  else { std::cerr << "Unsupported image format: " << extension << "\n"; return ""; }
+  else { std::println(std::cerr, "Unsupported image format: {}", extension); return ""; }
 
   cairo_status_t status = cairo_surface_status(surface);
   if (status != CAIRO_STATUS_SUCCESS) {
-    std::cerr << "Unable to load image: " << imagePath << ": " << cairo_status_to_string(status) << "\n";
+    std::println(std::cerr, "Unable to load image: {}: {}", imagePath, cairo_status_to_string(status));
     cairo_surface_destroy(surface);
     return "";
   }
