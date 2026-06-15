@@ -1,7 +1,6 @@
 module;
 #include <cairo/cairo.h>
-#include <cpp/quantize/celebi.h>
-#include <cpp/score/score.h>
+#include <ctype.h>
 
 export module generate;
 
@@ -9,6 +8,7 @@ import std;
 import image;
 import color;
 import material;
+import quantize;
 
 export const std::string defaultColor = MaterialColors::primary;
 
@@ -59,13 +59,7 @@ export std::string colorFromImage(const std::string& imagePath) {
   }
   cairo_surface_destroy(surface);
 
-  material_color_utilities::QuantizerResult result =
-      material_color_utilities::QuantizeCelebi(pixels, 40);
-  std::vector<std::uint32_t> colors = material_color_utilities::RankedSuggestions(
-      result.color_to_count,
-      {.desired = 1, .fallback_color_argb = (int)Color::argbFromHex(defaultColor)});
-
-  return Color::hexFromArgb(colors[0]);
+  return dominantColor(pixels, defaultColor);
 }
 
 export std::string generateJson(const MaterialColors::DynamicPalette& palette) {

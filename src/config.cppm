@@ -14,16 +14,19 @@ export {
   const std::string SOCKET_FILE = TEMP + "/daemon.sock";
   const std::string CONFIG_DIR = HOME + "/.config/system-ui";
   const std::string CONFIG_FILE = CONFIG_DIR + "/system-ui.json";
+  const std::string THEME_FILE = CONFIG_DIR + "/theme.json";
   const std::string USER_CSS = CONFIG_DIR + "/system-ui.css";
 
   struct Config {
     bool darkMode = true;
     bool watchFiles = true;
-    using Theme = std::unordered_map<std::string, std::string>;
-    Theme theme;
   };
 
+  using ThemeMap = std::unordered_map<std::string, std::string>;
+
   extern StorageManager<Config> systemUiConfig;
+  extern StorageManager<ThemeMap> systemUiTheme;
 }
 
 StorageManager<Config> systemUiConfig = StorageManager<Config>(CONFIG_FILE);
+StorageManager<ThemeMap> systemUiTheme = StorageManager<ThemeMap>(THEME_FILE);

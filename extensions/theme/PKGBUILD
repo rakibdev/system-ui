@@ -8,10 +8,12 @@ depends=('cairo' 'libwebp' 'libjpeg-turbo' 'librsvg')
 makedepends=('xmake')
 
 build() {
+    cd "$startdir"
     xmake config --mode=release
-    xmake build
+    xmake build theme
 }
 
 package() {
-    install -Dm755 build/theme "$pkgdir/usr/bin/theme"
+    cd "$startdir"
+    install -Dm755 ../../build/theme "$pkgdir/usr/bin/theme"
 }

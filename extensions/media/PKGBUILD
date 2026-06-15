@@ -1,0 +1,20 @@
+pkgname=media
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Media control CLI for system-ui"
+arch=('x86_64')
+license=('MPL-2.0')
+depends=('qt6-base' 'glib2')
+makedepends=('xmake')
+
+build() {
+    cd "$startdir"
+    xmake config --mode=release
+    xmake build media
+}
+
+package() {
+    cd "$startdir"
+    install -Dm755 ../../build/media "$pkgdir/usr/bin/media"
+}
+
