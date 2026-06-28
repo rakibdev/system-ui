@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="Media control CLI for system-ui"
 arch=('x86_64')
 license=('MPL-2.0')
-depends=('qt6-base' 'glib2')
+depends=('glib2')
 makedepends=('xmake')
 
 build() {

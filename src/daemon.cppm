@@ -4,6 +4,7 @@ module;
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
 #include <glaze/glaze.hpp>
 
 export module daemon;
@@ -35,7 +36,8 @@ void destroy(int code) {
 }
 
 void onRequest(const std::string& command, int client) {
-  auto sendResponse = [client](const std::string& content = "", int status = 0) {
+  auto sendResponse = [client](const std::string& content = "",
+                               int status = 0) {
     std::string json = "{ \"content\": \"" + content +
                        "\", \"status\": " + std::to_string(status) + " }";
     send(client, json.c_str(), json.size(), 0);
@@ -73,7 +75,10 @@ void onRequest(const std::string& command, int client) {
       if (!extension) {
         std::string error;
         manager.load(path, error);
-        if (!error.empty()) { sendResponse(error, 1); return; }
+        if (!error.empty()) {
+          sendResponse(error, 1);
+          return;
+        }
         extension = manager.find(path);
       }
       if (extension) {
@@ -162,13 +167,16 @@ void initialize() {
   startServer();
   std::signal(SIGTERM, onTerminateBySystem);
   g_setenv("GDK_BACKEND", "wayland", true);
-  gtk_init(nullptr, nullptr);
+  gtk_init();
 #ifdef DEV
   cssManager->add(shareDir + "/src/default.css");
 #else
   cssManager->add(shareDir + "/default.css");
 #endif
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
-  gtk_main();
+  // GTK4: no gtk_main() — use GLib main loop directly
+  GMainLoop* loop = g_main_loop_new(nullptr, false);
+  g_main_loop_run(loop);
+  g_main_loop_unref(loop);
 }
 }

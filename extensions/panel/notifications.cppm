@@ -8,7 +8,6 @@ import elements.base;
 import elements.box;
 import elements.label;
 import elements.icon;
-import elements.event_box;
 import elements.window;
 import notifications;
 import transition;
@@ -20,7 +19,7 @@ std::unique_ptr<Window> popupWindow;
 bool isTransitioning = false;
 std::unique_ptr<PropertyTransition> slideTransition;
 
-class NotificationItem : public EventBox {
+class NotificationItem : public Box {
  public:
   Icon* icon;
   Label* title;
@@ -28,7 +27,7 @@ class NotificationItem : public EventBox {
   const Notification* notificationData;
   int index;
 
-  NotificationItem(const Notification& notification, int _index) : EventBox() {
+  NotificationItem(const Notification& notification, int _index) : Box() {
     notificationData = &notification;
     index = _index;
 

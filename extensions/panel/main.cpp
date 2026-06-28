@@ -1,5 +1,5 @@
-#include <gtk/gtk.h>
 #include <gtk-layer-shell.h>
+#include <gtk/gtk.h>
 
 import elements.base;
 import elements.box;
@@ -7,7 +7,6 @@ import elements.label;
 import elements.icon;
 import elements.button;
 import elements.flowbox;
-import elements.event_box;
 import elements.slider;
 import elements.window;
 import extension;
@@ -224,13 +223,13 @@ void update() {
   tile->setActive(Audio::defaultSink && Audio::defaultSink->volume > 0);
 }
 
-std::unique_ptr<EventBox> create() {
+std::unique_ptr<Box> create() {
   auto _tile = std::make_unique<Tile>();
   tile = _tile.get();
   tile->endIcon->set("keyboard_arrow_right");
   tile->onClick(AudioDialog::create);
 
-  auto eventBox = std::make_unique<EventBox>();
+  auto eventBox = std::make_unique<Box>();
   eventBox->onScroll(onScroll);
   eventBox->add(std::move(_tile));
   return eventBox;
@@ -249,7 +248,8 @@ void destroy() { tile = nullptr; }
 
 namespace NightLightTile {
 Tile* tile;
-std::string nightLightShader = std::string(EXT_DIR) + "/assets/shaders/night-light.frag";
+std::string nightLightShader =
+    std::string(EXT_DIR) + "/assets/shaders/night-light.frag";
 std::string resetShader = std::string(EXT_DIR) + "/assets/shaders/reset.frag";
 
 void update() {
@@ -649,4 +649,4 @@ Panel::~Panel() {
   Audio::destroy();
 }
 
-extern "C" Extension* createExtension() { return new Panel() ; }
+extern "C" Extension* createExtension() { return new Panel(); }

@@ -7,8 +7,8 @@ import std;
 import elements.base;
 
 export class Transition {
-  static constexpr float timeoutMs = 16.67;
-  int timeout = 0;
+  static constexpr float timeoutMs = 16.67f;
+  guint timeout = 0;
   std::int16_t currentSteps = 0;
   std::int16_t stepWidth;
   std::int16_t stepHeight;
@@ -16,27 +16,33 @@ export class Transition {
   std::function<void()> finishCallback;
 
  public:
-  struct Frame { std::int16_t width; std::int16_t height; };
+  struct Frame {
+    std::int16_t width;
+    std::int16_t height;
+  };
   Frame current;
   std::int16_t _duration;
 
   Transition(Element* element) : element(element) {}
 
-  Transition* duration(std::int16_t value) { _duration = value; return this; }
+  Transition* duration(std::int16_t value) {
+    _duration = value;
+    return this;
+  }
 
   Transition* to(Frame to, const std::function<void()>& onFinish) {
     if (currentSteps > 0) {
       g_source_remove(timeout);
     } else {
-      current.width = gtk_widget_get_allocated_width(element->widget);
-      current.height = gtk_widget_get_allocated_height(element->widget);
+      current.width = gtk_widget_get_width(element->widget);
+      current.height = gtk_widget_get_height(element->widget);
       for (const auto& child : element->children) child->visible(false);
     }
     finishCallback = onFinish;
     currentSteps = _duration / timeoutMs;
     stepWidth = (to.width - current.width) / currentSteps;
     stepHeight = (to.height - current.height) / currentSteps;
-    timeout = g_timeout_add(timeoutMs, update, this);
+    timeout = g_timeout_add((guint)timeoutMs, update, this);
     return this;
   }
 

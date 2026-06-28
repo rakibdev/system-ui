@@ -2,14 +2,15 @@ includes("xmake.utils.lua")
 
 setup()
 
-add_requires("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0", {system = true})
+add_requires("gtk4", "gtk4-layer-shell", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0", {system = true})
 
 target("system-ui")
     set_kind("shared")
     build_in_root()
     add_rules("c++.build.modules")
     add_files("src/**.cpp", "src/**.cppm")
-    add_packages("gtk+-3.0", "gtk-layer-shell-0", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0", {public = true})
+    add_files("libs/material-colors/oklch.cppm", "libs/material-colors/hct-oklch.cppm")
+    add_packages("gtk4", "gtk4-layer-shell", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0", {public = true})
     add_cxxflags("-fPIC")
     if is_mode("debug") then
         add_defines('SHARE_DIR="' .. os.projectdir() .. '"')

@@ -57,3 +57,8 @@ Place compiled .so files in the following directory:
 ```
 ~/.config/system-ui/extensions
 ```
+
+
+- network/bluetooth live PropertiesChanged subscription left as TODO — no moc-free signal relay exists; initial state + method calls work. Only affects panel (out of your launcher+system-ui scope). media live updates work via QDBusServiceWatcher.
+- Panel/media/theme extensions not migrated (separate targets, not requested) — they won't build until ported.
+- Runtime not started (you launch the daemon). Recommend: ./build/ui --serve then ./build/ui ./build/launcher.so toggle.

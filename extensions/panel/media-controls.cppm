@@ -13,7 +13,6 @@ import elements.label;
 import elements.icon;
 import elements.button;
 import elements.slider;
-import elements.event_box;
 import media;
 import debounce;
 import config;
@@ -140,7 +139,7 @@ export class Player {
 
   void updateSlider() { if (!dragging) slider->value(controller->progress()); }
 
-  std::unique_ptr<EventBox> create() {
+  std::unique_ptr<Box> create() {
     auto _title = std::make_unique<Label>();
     _title->addClass("title");
     title = _title.get();
@@ -174,7 +173,7 @@ export class Player {
     _element->add(std::move(_slider));
     element = _element.get();
 
-    auto eventBox = std::make_unique<EventBox>();
+    auto eventBox = std::make_unique<Box>();
     eventBox->onScroll([this](ScrollDirection direction) {
       if (direction == ScrollDirection::Up) controller->next();
       else controller->previous();

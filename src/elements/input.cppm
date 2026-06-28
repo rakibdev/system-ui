@@ -16,19 +16,19 @@ export class Input : public KeyboardEvents {
     widget = gtk_entry_new();
     gtk_widget_set_hexpand(widget, true);
   }
-  std::string value() { return gtk_entry_get_text((GtkEntry*)widget); }
-  Input* value(const std::string& value) {
-    gtk_entry_set_text((GtkEntry*)widget, value.c_str());
+  std::string value() { return gtk_editable_get_text(GTK_EDITABLE(widget)); }
+  Input* value(const std::string& val) {
+    gtk_editable_set_text(GTK_EDITABLE(widget), val.c_str());
     return this;
   }
-  Input* placeholder(const std::string& value) {
-    gtk_entry_set_placeholder_text((GtkEntry*)widget, value.c_str());
+  Input* placeholder(const std::string& val) {
+    gtk_entry_set_placeholder_text((GtkEntry*)widget, val.c_str());
     return this;
   }
   Input* onChange(const std::function<void()>& callback) {
     changeCallback = callback;
     g_signal_connect(widget, "changed",
-                     G_CALLBACK(+[](GtkWidget*, gpointer data) {
+                     G_CALLBACK(+[](GtkEditable*, gpointer data) {
                        static_cast<Input*>(data)->changeCallback();
                      }),
                      this);
@@ -37,7 +37,7 @@ export class Input : public KeyboardEvents {
   Input* onSubmit(const std::function<void()>& callback) {
     submitCallback = callback;
     g_signal_connect(widget, "activate",
-                     G_CALLBACK(+[](GtkWidget*, gpointer data) {
+                     G_CALLBACK(+[](GtkEntry*, gpointer data) {
                        static_cast<Input*>(data)->submitCallback();
                      }),
                      this);

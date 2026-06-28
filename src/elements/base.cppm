@@ -35,17 +35,15 @@ export class Element {
   }
 
   Element* addClass(const std::string& classNames) {
-    GtkStyleContext* style = gtk_widget_get_style_context(widget);
     std::istringstream iss(classNames);
     std::string name;
     while (std::getline(iss, name, ' '))
-      gtk_style_context_add_class(style, name.c_str());
+      gtk_widget_add_css_class(widget, name.c_str());
     return this;
   }
 
   Element* removeClass(const std::string& className) {
-    gtk_style_context_remove_class(gtk_widget_get_style_context(widget),
-                                   className.c_str());
+    gtk_widget_remove_css_class(widget, className.c_str());
     return this;
   }
 
