@@ -2,23 +2,24 @@
   padding: 4px;
   border-radius: 24px;
   color: @foreground;
-  background-color: alpha(@hover, 0.6);
+  background-color: @background;
 }
 
 .launcher .search {
-  background-color: @surface-variant;
+  background-color: @card;
   border-radius: 24px;
   padding: 0 16px;
   margin: 8px;
 }
 
-.launcher .search entry {
+.launcher .search entry,
+.launcher .search entry:focus {
   padding: 0;
-  background: transparent;
+  background-color: transparent;
 }
 
 .launcher .grid + .grid {
-  border-top: 1px solid @surface-variant;
+  border-top: 1px solid @border;
 }
 
 .launcher .app {
@@ -28,30 +29,55 @@
 
 .launcher .app:hover,
 .launcher .app:focus {
-  background-color: @surface-variant;
+  background-color: @hover;
 }
 
-.launcher .app .icon {
+.launcher .app-icon {
   border-radius: 50%;
   min-width: 48px;
   min-height: 48px;
 }
 
-.launcher .app .icon.adaptive {
+.launcher .app-icon.adaptive {
   background-color: #fff;
-  background-size: 38px;
+  padding: 4px;
 }
 
-.launcher .app .icon.circular {
-  background-size: 48px;
+.launcher .app-icon label {
+  font-size: 32px;
 }
 
 .launcher .app .name {
-  font-size: 14px;
+  font-size: 16px;
   margin-top: 8px;
 }
 
-.app-menu menuitem.no-icon {
+.app-menu > contents {
+  border: 1px solid @border;
+}
+
+.app-menu .list-item {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.app-menu .list-item:first-child {
+  border-radius: 16px 16px 0 0;
+}
+
+.app-menu .list-item:last-child {
+  border-radius: 0 0 16px 16px;
+}
+
+.app-menu .list-item:hover {
+  background-color: @card;
+}
+
+.app-menu .menu-item .start-icon {
+  margin-right: 2px;
+}
+
+.app-menu .menu-item.no-icon {
   padding-left: 40px;
 }
 

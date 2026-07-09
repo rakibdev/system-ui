@@ -199,7 +199,7 @@ Tile* tile;
 void onScroll(ScrollDirection direction) {
   if (!Audio::defaultSink) return;
   std::int16_t delta = direction == ScrollDirection::Up ? 10 : -10;
-  std::uint16_t volume = std::clamp(Audio::defaultSink->volume + delta, 0, 100);
+  std::uint16_t volume = std::clamp(Audio::defaultSink->volume + delta, 0, 60);
   Audio::volume(Audio::defaultSink, volume);
 }
 

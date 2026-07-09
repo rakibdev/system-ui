@@ -1,7 +1,7 @@
 .quick-settings {
   border-radius: 24px;
   color: @foreground;
-  background-color: alpha(@hover, 0.6);
+  background-color: @background;
   padding: 16px;
 }
 
@@ -30,7 +30,7 @@
   margin-top: 8px;
   padding: 16px;
   border-radius: 16px;
-  background-color: @surface-variant;
+  background-color: @card;
   background-size: cover;
   background-position: center;
 }
@@ -58,7 +58,7 @@
 }
 
 .notification-item {
-  background-color: @surface;
+  background-color: @card;
   border-radius: 24px;
   padding: 16px;
 }
@@ -84,7 +84,7 @@
 }
 
 .notification-item:hover {
-  background-color: @surface-variant;
+  background-color: @card;
 }
 
 .audio-dialog .section-header {
@@ -129,9 +129,11 @@
   border-radius: 24px;
 }
 
-.audio-trough.over trough highlight {
-  background-color: red;
+.audio-trough trough fill {
+  background-color: transparent;
+  border-radius: 24px;
 }
+
 
 .audio-trough slider {
   all: unset;

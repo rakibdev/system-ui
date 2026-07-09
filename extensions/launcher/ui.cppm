@@ -34,7 +34,7 @@ export class Launcher : public Extension {
   Box* searchPlaceholder;
 
   void launch(const std::string& command, bool terminal = false);
-  void openContextMenu(App& app, GdkEventButton* event);
+  void openContextMenu(App& app, double x, double y);
   std::unique_ptr<FlowBox> createGrid();
   std::unique_ptr<Box> createSearch();
   void createWindow();
@@ -44,6 +44,7 @@ export class Launcher : public Extension {
   FlowBox* pinGrid;
   FlowBox* grid;
   void update(bool sort = true);
+  void filter();
 
   Response onRequest(std::string_view command) override;
 
@@ -54,100 +55,133 @@ export class Launcher : public Extension {
 class DragDrop {
   Launcher* launcher;
 
-  static const GtkTargetEntry dragTargets[];
-  static const gint nDragTargets;
-
-  static void onDragBegin(GtkWidget*, GdkDragContext* context,
-                          gpointer userData) {
-    App* app = static_cast<App*>(userData);
-    app->element->addState(GTK_STATE_FLAG_ACTIVE);
-    app->element->addClass("dragging");
-    gtk_drag_set_icon_default(context);
-  }
-
-  static void onDragEnd(GtkWidget*, GdkDragContext*, gpointer userData) {
-    App* app = static_cast<App*>(userData);
-    app->element->removeState(GTK_STATE_FLAG_ACTIVE);
-    app->element->removeClass("dragging");
-  }
-
-  static void onDragDataGet(GtkWidget*, GdkDragContext*, GtkSelectionData* data,
-                            guint, guint, gpointer userData) {
-    App* app = static_cast<App*>(userData);
+  static GdkContentProvider* getDragContent(App* app) {
     std::string filename = std::filesystem::path(app->file).filename();
-    gtk_selection_data_set(data, gtk_selection_data_get_target(data), 8,
-                           (const guchar*)filename.c_str(), filename.length());
+    GValue val = G_VALUE_INIT;
+    g_value_init(&val, G_TYPE_STRING);
+    g_value_set_string(&val, filename.c_str());
+    auto* provider = gdk_content_provider_new_for_value(&val);
+    g_value_unset(&val);
+    return provider;
   }
-
-  static gboolean onPinnedGridDragEnter(GtkWidget*, GdkDragContext*, gint, gint,
-                                        guint, gpointer userData) {
-    static_cast<Launcher*>(userData)->pinGrid->addClass("drag-over");
-    return TRUE;
-  }
-
-  static void onPinnedGridDragLeave(GtkWidget*, GdkDragContext*, guint,
-                                    gpointer userData) {
-    static_cast<Launcher*>(userData)->pinGrid->removeClass("drag-over");
-  }
-
-  static void onPinnedGridDragDataReceived(GtkWidget* widget,
-                                           GdkDragContext* context, gint x,
-                                           gint y, GtkSelectionData* data,
-                                           guint, guint time,
-                                           gpointer userData);
-
-  static gboolean onAppGridDragEnter(GtkWidget*, GdkDragContext*, gint, gint,
-                                     guint, gpointer userData) {
-    static_cast<Launcher*>(userData)->grid->addClass("drag-over");
-    return TRUE;
-  }
-
-  static void onAppGridDragLeave(GtkWidget*, GdkDragContext*, guint,
-                                 gpointer userData) {
-    static_cast<Launcher*>(userData)->grid->removeClass("drag-over");
-  }
-
-  static void onAppGridDragDataReceived(GtkWidget*, GdkDragContext* context,
-                                        gint, gint, GtkSelectionData* data,
-                                        guint, guint time, gpointer userData);
 
  public:
   explicit DragDrop(Launcher* launcher) : launcher(launcher) {}
 
-  void setupDragAndDrop(EventBox* eventBox, App& app) {
-    gtk_drag_source_set(eventBox->widget, GDK_BUTTON1_MASK, dragTargets,
-                        nDragTargets, GDK_ACTION_MOVE);
-    g_signal_connect(eventBox->widget, "drag-begin", G_CALLBACK(onDragBegin),
+  void setupDragAndDrop(GtkWidget* widget, App& app) {
+    auto* source = gtk_drag_source_new();
+    gtk_drag_source_set_actions(source, GDK_ACTION_MOVE);
+
+    g_signal_connect(source, "prepare",
+                     G_CALLBACK(+[](GtkDragSource*, gdouble, gdouble,
+                                    gpointer data) -> GdkContentProvider* {
+                       return getDragContent(static_cast<App*>(data));
+                     }),
                      &app);
-    g_signal_connect(eventBox->widget, "drag-end", G_CALLBACK(onDragEnd), &app);
-    g_signal_connect(eventBox->widget, "drag-data-get",
-                     G_CALLBACK(onDragDataGet), &app);
+
+    g_signal_connect(source, "drag-begin",
+                     G_CALLBACK(+[](GtkDragSource*, GdkDrag*, gpointer data) {
+                       auto* app = static_cast<App*>(data);
+                       app->element->addClass("dragging");
+                     }),
+                     &app);
+
+    g_signal_connect(
+        source, "drag-end",
+        G_CALLBACK(+[](GtkDragSource*, GdkDrag*, gboolean, gpointer data) {
+          auto* app = static_cast<App*>(data);
+          app->element->removeClass("dragging");
+        }),
+        &app);
+
+    gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(source));
   }
 
   void setupDropTargets(FlowBox* pinGrid, FlowBox* appGrid) {
-    gtk_drag_dest_set(pinGrid->widget, GTK_DEST_DEFAULT_ALL, dragTargets,
-                      nDragTargets, GDK_ACTION_MOVE);
-    g_signal_connect(pinGrid->widget, "drag-motion",
-                     G_CALLBACK(onPinnedGridDragEnter), launcher);
-    g_signal_connect(pinGrid->widget, "drag-leave",
-                     G_CALLBACK(onPinnedGridDragLeave), launcher);
-    g_signal_connect(pinGrid->widget, "drag-data-received",
-                     G_CALLBACK(onPinnedGridDragDataReceived), launcher);
-    gtk_drag_dest_set(appGrid->widget, GTK_DEST_DEFAULT_ALL, dragTargets,
-                      nDragTargets, GDK_ACTION_MOVE);
-    g_signal_connect(appGrid->widget, "drag-motion",
-                     G_CALLBACK(onAppGridDragEnter), launcher);
-    g_signal_connect(appGrid->widget, "drag-leave",
-                     G_CALLBACK(onAppGridDragLeave), launcher);
-    g_signal_connect(appGrid->widget, "drag-data-received",
-                     G_CALLBACK(onAppGridDragDataReceived), launcher);
+    // pin grid drop
+    {
+      GType types[] = {G_TYPE_STRING};
+      auto* target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_MOVE);
+
+      g_signal_connect(
+          target, "motion",
+          G_CALLBACK(+[](GtkDropTarget*, gdouble, gdouble,
+                         gpointer data) -> GdkDragAction {
+            static_cast<Launcher*>(data)->pinGrid->addClass("drag-over");
+            return GDK_ACTION_MOVE;
+          }),
+          launcher);
+
+      g_signal_connect(
+          target, "leave", G_CALLBACK(+[](GtkDropTarget*, gpointer data) {
+            static_cast<Launcher*>(data)->pinGrid->removeClass("drag-over");
+          }),
+          launcher);
+
+      g_signal_connect(
+          target, "drop",
+          G_CALLBACK(+[](GtkDropTarget* t, const GValue* val, gdouble x,
+                         gdouble y, gpointer data) -> gboolean {
+            auto* l = static_cast<Launcher*>(data);
+            l->pinGrid->removeClass("drag-over");
+            if (!G_VALUE_HOLDS_STRING(val)) return FALSE;
+            const char* filename = g_value_get_string(val);
+            GtkWidget* fb = l->pinGrid->widget;
+            GtkFlowBoxChild* childAtPos =
+                gtk_flow_box_get_child_at_pos(GTK_FLOW_BOX(fb), (int)x, (int)y);
+            int dropIndex = childAtPos
+                                ? gtk_flow_box_child_get_index(childAtPos)
+                                : (int)childCount(l->pinGrid->widget);
+            if (Pinned::has(filename))
+              Pinned::reorder(filename, dropIndex);
+            else
+              Pinned::insertAt(filename, dropIndex);
+            l->update();
+            return TRUE;
+          }),
+          launcher);
+
+      gtk_widget_add_controller(pinGrid->widget, GTK_EVENT_CONTROLLER(target));
+    }
+    // app grid drop (unpin)
+    {
+      auto* target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_MOVE);
+
+      g_signal_connect(
+          target, "motion",
+          G_CALLBACK(+[](GtkDropTarget*, gdouble, gdouble,
+                         gpointer data) -> GdkDragAction {
+            static_cast<Launcher*>(data)->grid->addClass("drag-over");
+            return GDK_ACTION_MOVE;
+          }),
+          launcher);
+
+      g_signal_connect(
+          target, "leave", G_CALLBACK(+[](GtkDropTarget*, gpointer data) {
+            static_cast<Launcher*>(data)->grid->removeClass("drag-over");
+          }),
+          launcher);
+
+      g_signal_connect(
+          target, "drop",
+          G_CALLBACK(+[](GtkDropTarget*, const GValue* val, gdouble, gdouble,
+                         gpointer data) -> gboolean {
+            auto* l = static_cast<Launcher*>(data);
+            l->grid->removeClass("drag-over");
+            if (!G_VALUE_HOLDS_STRING(val)) return FALSE;
+            const char* filename = g_value_get_string(val);
+            if (Pinned::has(filename)) {
+              Pinned::toggle(filename, false);
+              l->update();
+            }
+            return TRUE;
+          }),
+          launcher);
+
+      gtk_widget_add_controller(appGrid->widget, GTK_EVENT_CONTROLLER(target));
+    }
   }
 };
-
-const GtkTargetEntry DragDrop::dragTargets[] = {
-    {(gchar*)"application/x-pinned-app", GTK_TARGET_SAME_APP, 0}};
-const gint DragDrop::nDragTargets =
-    sizeof(dragTargets) / sizeof(dragTargets[0]);
 
 void Launcher::unload() {
   for (auto& [key, extension] : Daemon::manager.extensions) {
@@ -188,14 +222,10 @@ void Launcher::launch(const std::string& command, bool terminal) {
   runNewProcess(term + " -e " + command);
 }
 
-void Launcher::openContextMenu(App& app, GdkEventButton* event) {
-  if (menu)
-    menu->children.clear();
-  else {
-    menu = std::make_unique<Menu>();
-    menu->addClass("app-menu");
-    menu->onHide([this]() { search->focus(); });
-  }
+void Launcher::openContextMenu(App& app, double x, double y) {
+  menu = std::make_unique<Menu>(app.element->widget);
+  menu->addClass("app-menu");
+  menu->onHide([this]() { search->focus(); });
   {
     auto item = Pinned::has(app.file)
                     ? std::make_unique<MenuItem>("Unpin", "cancel")
@@ -225,8 +255,7 @@ void Launcher::openContextMenu(App& app, GdkEventButton* event) {
       menu->add(std::move(item));
     }
   }
-  app.element->removeState(GTK_STATE_FLAG_PRELIGHT);
-  menu->visible()->focus();
+  menu->visible(true);
 }
 
 bool searchContains(std::string text, std::string query) {
@@ -345,10 +374,10 @@ std::unique_ptr<Box> createSearchPlaceholder() {
   box->addClass("placeholder");
   box->gap(24);
 
-  auto icon = std::make_unique<Icon>();
-  icon->set("apps");
-  gtk_widget_set_halign(icon->widget, GTK_ALIGN_CENTER);
-  box->add(std::move(icon));
+  auto ico = std::make_unique<Icon>();
+  ico->set("apps");
+  gtk_widget_set_halign(ico->widget, GTK_ALIGN_CENTER);
+  box->add(std::move(ico));
 
   box->add(std::make_unique<Label>("No results"));
   return box;
@@ -389,18 +418,17 @@ Launcher::Launcher() {
 }
 
 void Launcher::createWindow() {
-  window = std::make_unique<Window>(GTK_WINDOW_TOPLEVEL,
-                                    GTK_LAYER_SHELL_KEYBOARD_MODE_EXCLUSIVE);
-  gtk_layer_set_namespace((GtkWindow*)window->widget, "launcher");
+  window = std::make_unique<Window>(GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND);
+  window->setNamespace("launcher");
   window->addClass("launcher");
   window->size(440, 540);
 
-  cssManager->add(std::string(EXT_DIR) + "/default.css");
+  std::string cssPath = std::string(EXT_DIR) + "/default.css";
+  cssManager->add(cssPath);
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
-  window->visible();
-  window->onKeyDown([this](GdkEventKey* event) {
-    if (event->keyval == GDK_KEY_Escape) unload();
+  window->onKeyDown([this](guint keyval, GdkModifierType) {
+    if (keyval == GDK_KEY_Escape) unload();
   });
 
   auto body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
@@ -432,48 +460,16 @@ void Launcher::createWindow() {
   dragDrop->setupDropTargets(pinGrid, grid);
 
   update();
+  window->visible();
   search->focus();
-}
 
-void DragDrop::onPinnedGridDragDataReceived(GtkWidget* widget,
-                                            GdkDragContext* context, gint x,
-                                            gint y, GtkSelectionData* data,
-                                            guint, guint time,
-                                            gpointer userData) {
-  Launcher* launcher = static_cast<Launcher*>(userData);
-  launcher->pinGrid->removeClass("drag-over");
-  if (gtk_selection_data_get_length(data) <= 0) {
-    gtk_drag_finish(context, FALSE, FALSE, time);
-    return;
-  }
-  std::string draggedFilename((const char*)gtk_selection_data_get_data(data),
-                              gtk_selection_data_get_length(data));
-  GtkFlowBoxChild* childAtPos =
-      gtk_flow_box_get_child_at_pos(GTK_FLOW_BOX(widget), x, y);
-  int dropIndex = childAtPos ? gtk_flow_box_child_get_index(childAtPos)
-                             : (int)launcher->pinGrid->children.size();
-  if (Pinned::has(draggedFilename))
-    Pinned::reorder(draggedFilename, dropIndex);
-  else
-    Pinned::insertAt(draggedFilename, dropIndex);
-  launcher->update();
-  gtk_drag_finish(context, TRUE, FALSE, time);
-}
-
-void DragDrop::onAppGridDragDataReceived(GtkWidget*, GdkDragContext* context,
-                                         gint, gint, GtkSelectionData* data,
-                                         guint, guint time, gpointer userData) {
-  Launcher* launcher = static_cast<Launcher*>(userData);
-  launcher->grid->removeClass("drag-over");
-  if (gtk_selection_data_get_length(data) <= 0) {
-    gtk_drag_finish(context, FALSE, FALSE, time);
-    return;
-  }
-  std::string draggedFilename((const char*)gtk_selection_data_get_data(data),
-                              gtk_selection_data_get_length(data));
-  if (Pinned::has(draggedFilename)) {
-    Pinned::toggle(draggedFilename, false);
-    launcher->update();
-  }
-  gtk_drag_finish(context, TRUE, FALSE, time);
+  g_idle_add(
+      [](gpointer data) -> gboolean {
+        auto* self = static_cast<Launcher*>(data);
+        refreshApps();
+        Pinned::syncPinned(apps);
+        if (self->window) self->update();
+        return G_SOURCE_REMOVE;
+      },
+      this);
 }

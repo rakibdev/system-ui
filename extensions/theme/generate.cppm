@@ -8,38 +8,61 @@ import std;
 import image;
 import color;
 import material;
+import hct_oklch;
 import quantize;
 
 export const std::string defaultColor = MaterialColors::primary;
 
-export std::map<std::string, std::string> paletteToMap(const MaterialColors::DynamicPalette& palette) {
-  return {{"foreground", palette.foreground},
-          {"mutedForeground", palette.mutedForeground},
-          {"background", palette.background},
-          {"card", palette.card},
-          {"popover", palette.popover},
-          {"hover", palette.hover},
-          {"primary", palette.primary},
-          {"primaryForeground", palette.primaryForeground},
-          {"secondary", palette.secondary},
-          {"secondaryForeground", palette.secondaryForeground},
-          {"border", palette.border}};
+export std::string rgbaFromHct(const std::string& hex, double tone,
+                               double alpha) {
+  auto hct = hexToHct(hex);
+  auto [r, g, b] = hctToRgb(hct.hue, hct.chroma, tone);
+  return std::format("rgba({},{},{},{:.2f})", r, g, b, alpha);
+}
+
+export std::map<std::string, std::string> paletteToMap(
+    const MaterialColors::DynamicPalette& palette, bool dark, bool glass) {
+  double glassFgTone = dark ? 98.0 : 10.0;
+  double glassBgTone = dark ? 20.0 : 85.0;
+
+  return {
+      {"foreground", palette.foreground},
+      {"mutedForeground", palette.mutedForeground},
+      {"background", glass ? rgbaFromHct(palette.background, glassBgTone, 0.70)
+                           : palette.background},
+      {"card", glass ? rgbaFromHct(palette.card, glassFgTone, 0.10) : palette.card},
+      {"popover", glass ? rgbaFromHct(palette.popover, glassBgTone, 0.90) : palette.popover},
+      {"hover", glass ? rgbaFromHct(palette.hover, glassFgTone, 0.10) : palette.hover},
+      {"primary", palette.primary},
+      {"primaryForeground", palette.primaryForeground},
+      {"secondary", palette.secondary},
+      {"secondaryForeground", palette.secondaryForeground},
+      {"border", glass ? rgbaFromHct(palette.border, glassFgTone, 0.10)
+                       : palette.border}};
 }
 
 export std::string colorFromImage(const std::string& imagePath) {
   cairo_surface_t* surface = nullptr;
 
   std::string extension = std::filesystem::path(imagePath).extension().string();
-  std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+  std::transform(extension.begin(), extension.end(), extension.begin(),
+                 ::tolower);
 
-  if (extension == ".webp") surface = createSurfaceFromWebP(imagePath);
-  else if (extension == ".jpg" || extension == ".jpeg") surface = createSurfaceFromJpeg(imagePath);
-  else if (extension == ".png") surface = createSurfaceFromPng(imagePath);
-  else { std::println(std::cerr, "Unsupported image format: {}", extension); return ""; }
+  if (extension == ".webp")
+    surface = createSurfaceFromWebP(imagePath);
+  else if (extension == ".jpg" || extension == ".jpeg")
+    surface = createSurfaceFromJpeg(imagePath);
+  else if (extension == ".png")
+    surface = createSurfaceFromPng(imagePath);
+  else {
+    std::println(std::cerr, "Unsupported image format: {}", extension);
+    return "";
+  }
 
   cairo_status_t status = cairo_surface_status(surface);
   if (status != CAIRO_STATUS_SUCCESS) {
-    std::println(std::cerr, "Unable to load image: {}: {}", imagePath, cairo_status_to_string(status));
+    std::println(std::cerr, "Unable to load image: {}: {}", imagePath,
+                 cairo_status_to_string(status));
     cairo_surface_destroy(surface);
     return "";
   }
@@ -62,8 +85,9 @@ export std::string colorFromImage(const std::string& imagePath) {
   return dominantColor(pixels, defaultColor);
 }
 
-export std::string generateJson(const MaterialColors::DynamicPalette& palette) {
-  auto paletteMap = paletteToMap(palette);
+export std::string generateJson(const MaterialColors::DynamicPalette& palette,
+                                bool dark, bool glass) {
+  auto paletteMap = paletteToMap(palette, dark, glass);
   std::stringstream json;
   json << "{\n";
   std::size_t count = 0;
@@ -74,23 +98,4 @@ export std::string generateJson(const MaterialColors::DynamicPalette& palette) {
   }
   json << "}\n";
   return json.str();
-}
-
-export std::string generateCss(const MaterialColors::DynamicPalette& palette) {
-  auto paletteMap = paletteToMap(palette);
-  std::stringstream css;
-  css << ":root {\n";
-  for (const auto& [key, value] : paletteMap) {
-    std::string cssKey = key;
-    for (std::size_t i = 1; i < cssKey.length(); ++i) {
-      if (std::isupper(cssKey[i])) {
-        cssKey.insert(i, "-");
-        cssKey[i + 1] = std::tolower(cssKey[i + 1]);
-        ++i;
-      }
-    }
-    css << "  --" << cssKey << ": " << value << ";\n";
-  }
-  css << "}\n";
-  return css.str();
 }

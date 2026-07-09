@@ -32,7 +32,6 @@ export struct AppData {
 
 export struct AppCache {
   std::vector<AppData> apps;
-  std::string updatedAt;
 };
 
 export struct App : AppData {
@@ -47,14 +46,27 @@ export const std::string CACHE_DIR = HOME + "/.cache/system-ui";
 export StorageManager<AppCache> appCache(CACHE_DIR + "/launcher.json");
 
 export constexpr std::string_view APPLICATIONS = "/usr/share/applications";
-export const std::string USER_APPLICATIONS = HOME + "/.local/share/applications";
+export const std::string USER_APPLICATIONS =
+    HOME + "/.local/share/applications";
 
 std::string resolveIconPath(const std::string& iconName) {
-  GtkIconInfo* info = gtk_icon_theme_lookup_icon(gtk_icon_theme_get_default(), iconName.c_str(), 48, GTK_ICON_LOOKUP_USE_BUILTIN);
-  if (!info) return "";
-  const char* filename = gtk_icon_info_get_filename(info);
-  std::string result = filename ? std::string(filename) : "";
-  g_object_unref(info);
+  GtkIconTheme* theme =
+      gtk_icon_theme_get_for_display(gdk_display_get_default());
+  GtkIconPaintable* paintable =
+      gtk_icon_theme_lookup_icon(theme, iconName.c_str(), nullptr, 48, 1,
+                                 GTK_TEXT_DIR_NONE, (GtkIconLookupFlags)0);
+  if (!paintable) return "";
+  GFile* file = gtk_icon_paintable_get_file(paintable);
+  std::string result;
+  if (file) {
+    char* path = g_file_get_path(file);
+    if (path) {
+      result = path;
+      g_free(path);
+    }
+    g_object_unref(file);
+  }
+  g_object_unref(paintable);
   return result;
 }
 
@@ -77,7 +89,8 @@ std::string stripFieldCodes(std::string&& exec) {
 
 void scanApps(std::vector<App>& apps, std::string_view directory) {
   for (const auto& it : std::filesystem::directory_iterator(directory)) {
-    bool isDesktopEntry = it.is_regular_file() && it.path().extension() == ".desktop";
+    bool isDesktopEntry =
+        it.is_regular_file() && it.path().extension() == ".desktop";
     if (!isDesktopEntry) continue;
 
     auto appIt = findApp(apps, it.path().filename().string());
@@ -98,16 +111,23 @@ void scanApps(std::vector<App>& apps, std::string_view directory) {
         actionId = line.substr(start, end - start);
       } else if (line.starts_with("Name=")) {
         std::string label = line.substr(5);
-        if (actionId.empty()) app.label = label;
-        else app.actions[actionId].label = label;
+        if (actionId.empty())
+          app.label = label;
+        else
+          app.actions[actionId].label = label;
       } else if (line.starts_with("Exec=")) {
         std::string exec = stripFieldCodes(line.substr(5));
-        if (actionId.empty()) app.exec = exec;
-        else app.actions[actionId].exec = exec;
+        if (actionId.empty())
+          app.exec = exec;
+        else
+          app.actions[actionId].exec = exec;
       } else if (line.starts_with("Icon=")) {
         if (actionId.empty()) {
           app.icon = line.substr(5);
           if (!app.icon.contains('/')) app.icon = resolveIconPath(app.icon);
+          bool iconExists =
+              !app.icon.empty() && std::filesystem::exists(app.icon);
+          if (!iconExists) app.icon = "";
           app.isCircular = isIconCircular(app.icon);
         }
       } else if (line.starts_with("Terminal=true")) {
@@ -120,14 +140,13 @@ void scanApps(std::vector<App>& apps, std::string_view directory) {
   }
 }
 
-export void refreshApps(std::filesystem::file_time_type lastModified) {
+export void refreshApps() {
   apps.clear();
   scanApps(apps, APPLICATIONS);
   scanApps(apps, USER_APPLICATIONS);
 
   auto& data = appCache.get();
   data.apps.assign(apps.begin(), apps.end());
-  data.updatedAt = std::to_string(lastModified.time_since_epoch().count());
   std::filesystem::create_directories(CACHE_DIR);
   appCache.save();
 }

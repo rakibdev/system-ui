@@ -15,10 +15,7 @@ import elements.button;
 import elements.slider;
 import media;
 import debounce;
-import config;
-import generate;
 import image;
-import material;
 
 export class Player {
   std::unique_ptr<PlayerService> controller;
@@ -39,7 +36,6 @@ export class Player {
   std::unique_ptr<Debounce> onDragEnd;
 
   void updateTheme() {
-    std::unordered_map<std::string, std::string> theme;
     bool darkBackground = true;
 
     cairo_surface_t* surface = cairo_image_surface_create_from_png(controller->artUrl.c_str());
@@ -48,21 +44,9 @@ export class Player {
     bool fileNotFound = width == 0;
     bool chromiumSplashArt = width == 256 && width == height;
     bool invalidArt = fileNotFound || chromiumSplashArt;
-    if (invalidArt) {
-      theme = systemUiConfig.get().theme;
-    } else {
+
+    if (!invalidArt) {
       cairo_surface_t* thumbnailSurface = resizeImage(surface, width, height, 256);
-      std::string sourceColor = colorFromImage(controller->artUrl);
-      if (sourceColor.empty()) {
-        theme = systemUiConfig.get().theme;
-      } else {
-        auto sourceHct = MaterialColors::hexToHct(sourceColor);
-        auto palette = MaterialColors::createDynamicPalette(sourceHct, systemUiConfig.get().darkMode);
-        theme["background"] = palette.background;
-        theme["foreground"] = palette.foreground;
-        theme["primary"] = palette.primary;
-        theme["card"] = palette.card;
-      }
       darkBackground = isDarkBackground(thumbnailSurface);
       cairo_surface_destroy(thumbnailSurface);
     }
@@ -79,22 +63,22 @@ export class Player {
       className = ".player." + className;
     }
 
-    auto glassColor = [darkBackground](double opacity) {
+    auto overlayColor = [darkBackground](double opacity) {
       return darkBackground
                  ? "rgba(255, 255, 255, " + std::to_string(opacity) + ")"
                  : "rgba(0, 0, 0, " + std::to_string(opacity) + ")";
     };
-    const std::string glassBackground = glassColor(0.35);
-    const std::string glassForeground = darkBackground ? "#fff" : "#000";
-    const std::string progressBackground = glassColor(0.2);
+    const std::string overlayBg = overlayColor(0.35);
+    const std::string overlayFg = darkBackground ? "#fff" : "#000";
+    const std::string overlayProgress = overlayColor(0.2);
 
     std::string css = "";
     css += className + " { ";
     if (!invalidArt) css += "background-image: url('" + controller->artUrl + "'); ";
-    css += "color: " + glassForeground + "; } ";
-    css += className + " .play-pause { background: " + glassBackground + "; color: " + glassForeground + "; } ";
-    css += className + " trough { background-color: " + progressBackground + "; } ";
-    css += className + " highlight { background-color: " + glassBackground + "; } ";
+    css += "color: " + overlayFg + "; } ";
+    css += className + " .play-pause { background: " + overlayBg + "; color: " + overlayFg + "; } ";
+    css += className + " trough { background-color: " + overlayProgress + "; } ";
+    css += className + " highlight { background-color: " + overlayBg + "; } ";
     gtk_css_provider_load_from_data(cssProvider, css.c_str(), -1, nullptr);
   }
 

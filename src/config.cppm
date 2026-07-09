@@ -16,15 +16,17 @@ export {
   const std::string CONFIG_FILE = CONFIG_DIR + "/system-ui.json";
   const std::string USER_CSS = CONFIG_DIR + "/system-ui.css";
 
-  using ThemeMap = std::unordered_map<std::string, std::string>;
+  struct ThemeData {
+    bool darkMode = true;
+  };
 
   struct Config {
-    bool darkMode = true;
     bool watchFiles = true;
-    ThemeMap theme = {};
   };
 
   extern StorageManager<Config> systemUiConfig;
+  extern StorageManager<ThemeData> themeData;
 }
 
 StorageManager<Config> systemUiConfig = StorageManager<Config>(CONFIG_FILE);
+StorageManager<ThemeData> themeData = StorageManager<ThemeData>(CONFIG_DIR + "/theme.json");

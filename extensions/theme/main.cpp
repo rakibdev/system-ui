@@ -17,14 +17,16 @@ void usage() {
   std::println("  {:<38} {}", "  --template config.css > replaced.css",
                "Output to file");
   std::println("");
-  std::println("  {:<38} {}", "--css", "Output CSS template (default: JSON)");
   std::println("  {:<38} {}", "--light", "Use light mode (default: dark)");
+  std::println("  {:<38} {}", "--glass", "Use glass colors");
 }
 
 std::string processTemplate(std::string_view templateContent,
-                            const MaterialColors::DynamicPalette& palette) {
+                            const MaterialColors::DynamicPalette& palette,
+                            bool dark,
+                            bool glass) {
   std::string result(templateContent);
-  auto paletteMap = paletteToMap(palette);
+  auto paletteMap = paletteToMap(palette, dark, glass);
 
   std::regex variableRegex(R"(\{(\w+)(?:\.(\w+))?\})");
   std::smatch match;
@@ -56,8 +58,8 @@ int main(int argc, char* argv[]) {
 
   std::string colorValue = parser.value("--color", defaultColor);
   std::string templatePath = parser.value("--template");
-  bool outputCss = parser.has("--css");
   bool darkMode = !parser.has("--light");
+  bool glass = parser.has("--glass");
 
   std::string sourceColor;
   if (std::filesystem::exists(colorValue)) {
@@ -82,11 +84,9 @@ int main(int argc, char* argv[]) {
     std::stringstream buffer;
     buffer << file.rdbuf();
 
-    std::print(std::cout, "{}", processTemplate(buffer.str(), palette));
-  } else if (outputCss) {
-    std::print(std::cout, "{}", generateCss(palette));
+    std::print(std::cout, "{}", processTemplate(buffer.str(), palette, darkMode, glass));
   } else {
-    std::print(std::cout, "{}", generateJson(palette));
+    std::print(std::cout, "{}", generateJson(palette, darkMode, glass));
   }
 
   return 0;
