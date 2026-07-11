@@ -1,76 +1,67 @@
 module;
-#include <gtk-layer-shell.h>
 #include <gtk/gtk.h>
 
 export module elements.base;
 
 import std;
-import style;
-
 export enum class Align { Top, Bottom, Start, End, Center };
 export enum class ScrollDirection { Up, Down };
 
-export class Element {
- public:
-  virtual ~Element() {
-    style.reset();
-    children.clear();
-    gtk_widget_destroy(widget);
+export void clearChildren(GtkWidget* widget) {
+  while (auto* child = gtk_widget_get_first_child(widget))
+    gtk_widget_unparent(child);
+}
+
+export struct Element {
+  GtkWidget* widget;
+
+  Element(GtkWidget* widget) : widget(widget) { g_object_ref_sink(widget); }
+
+  Element(const Element&) = delete;
+  Element& operator=(const Element&) = delete;
+
+  Element(Element&& other) noexcept : widget(other.widget) { other.widget = nullptr; }
+  Element& operator=(Element&& other) noexcept {
+    if (this != &other) {
+      if (widget) g_object_unref(widget);
+      widget = other.widget;
+      other.widget = nullptr;
+    }
+    return *this;
   }
 
-  GtkWidget* widget = nullptr;
-  std::vector<std::unique_ptr<Element>> children;
-  std::unique_ptr<Style> style;
+  ~Element() { if (widget) g_object_unref(widget); }
 
-  Element* add(std::unique_ptr<Element>&& element) {
-    gtk_container_add(GTK_CONTAINER(widget), element->widget);
-    element->visible();
-    children.emplace_back(std::move(element));
-    return this;
-  }
-
-  virtual Element* visible(bool value = true) {
-    gtk_widget_set_visible(widget, value);
-    return this;
-  }
-
-  Element* addClass(const std::string& classNames) {
+  Element& addClass(const std::string& classNames) {
     std::istringstream iss(classNames);
     std::string name;
     while (std::getline(iss, name, ' '))
       gtk_widget_add_css_class(widget, name.c_str());
-    return this;
+    return *this;
   }
 
-  Element* removeClass(const std::string& className) {
+  Element& removeClass(const std::string& className) {
     gtk_widget_remove_css_class(widget, className.c_str());
-    return this;
+    return *this;
   }
 
-  Element* size(std::int16_t width, std::int16_t height) {
+  Element& visible(bool value = true) {
+    gtk_widget_set_visible(widget, value);
+    return *this;
+  }
+
+  Element& size(std::int16_t width, std::int16_t height) {
     gtk_widget_set_size_request(widget, width, height);
-    return this;
+    return *this;
   }
 
-  Element* tooltip(const std::string& text) {
+  Element& tooltip(const std::string& text) {
     gtk_widget_set_tooltip_markup(widget, text.c_str());
-    return this;
+    return *this;
   }
 
-  Element* focus() {
+  Element& focus() {
     gtk_widget_grab_focus(widget);
-    return this;
-  }
-
-  Element* addState(GtkStateFlags flag) {
-    GtkStateFlags flags = gtk_widget_get_state_flags(widget);
-    if (!(flags & flag)) gtk_widget_set_state_flags(widget, flag, false);
-    return this;
-  }
-
-  Element* removeState(GtkStateFlags flag) {
-    GtkStateFlags flags = gtk_widget_get_state_flags(widget);
-    if (flags & flag) gtk_widget_unset_state_flags(widget, flag);
-    return this;
+    return *this;
   }
 };

@@ -13,12 +13,6 @@ export struct LauncherConfig {
 export StorageManager<LauncherConfig> pinnedConfig(CONFIG_DIR +
                                                    "/launcher.json");
 
-auto findApp(std::vector<App>& apps, std::string_view filename) {
-  return std::ranges::find_if(apps, [filename](const App& app) {
-    return app.file.ends_with(filename);
-  });
-}
-
 export namespace Pinned {
 
 void syncPinned(std::vector<App>& apps) {

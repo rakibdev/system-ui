@@ -6,13 +6,13 @@ export module elements.transition;
 import std;
 import elements.base;
 
-export class Transition {
+export struct Transition {
   static constexpr float timeoutMs = 16.67f;
   guint timeout = 0;
   std::int16_t currentSteps = 0;
   std::int16_t stepWidth;
   std::int16_t stepHeight;
-  Element* element;
+  Element element;
   std::function<void()> finishCallback;
 
  public:
@@ -23,27 +23,29 @@ export class Transition {
   Frame current;
   std::int16_t _duration;
 
-  Transition(Element* element) : element(element) {}
+  Transition(Element element) : element(std::move(element)) {}
 
-  Transition* duration(std::int16_t value) {
+  Transition& duration(std::int16_t value) {
     _duration = value;
-    return this;
+    return *this;
   }
 
-  Transition* to(Frame to, const std::function<void()>& onFinish) {
+  Transition& to(Frame to, std::function<void()> onFinish) {
     if (currentSteps > 0) {
       g_source_remove(timeout);
     } else {
-      current.width = gtk_widget_get_width(element->widget);
-      current.height = gtk_widget_get_height(element->widget);
-      for (const auto& child : element->children) child->visible(false);
+      current.width = gtk_widget_get_width(element.widget);
+      current.height = gtk_widget_get_height(element.widget);
+      for (auto* c = gtk_widget_get_first_child(element.widget); c;
+           c = gtk_widget_get_next_sibling(c))
+        gtk_widget_set_visible(c, false);
     }
-    finishCallback = onFinish;
+    finishCallback = std::move(onFinish);
     currentSteps = _duration / timeoutMs;
     stepWidth = (to.width - current.width) / currentSteps;
     stepHeight = (to.height - current.height) / currentSteps;
     timeout = g_timeout_add((guint)timeoutMs, update, this);
-    return this;
+    return *this;
   }
 
   static gboolean update(gpointer data) {
@@ -52,11 +54,13 @@ export class Transition {
     if (self->currentSteps > 0) {
       self->current.width += self->stepWidth;
       self->current.height += self->stepHeight;
-      self->element->size(self->current.width, self->current.height);
+      self->element.size(self->current.width, self->current.height);
       return G_SOURCE_CONTINUE;
     } else {
-      for (const auto& child : self->element->children) child->visible();
-      self->element->size(-1, -1);
+      for (auto* c = gtk_widget_get_first_child(self->element.widget); c;
+           c = gtk_widget_get_next_sibling(c))
+        gtk_widget_set_visible(c, true);
+      self->element.size(-1, -1);
       self->finishCallback();
       return G_SOURCE_REMOVE;
     }

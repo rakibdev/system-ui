@@ -6,132 +6,118 @@ export module elements.events;
 import std;
 import elements.base;
 
-export class PointerEvents : virtual public Element {
- public:
-  using PointerCallback = std::function<void(double x, double y, guint button)>;
+export using PointerCallback =
+    std::function<void(double x, double y, guint button)>;
 
- private:
-  PointerCallback pointerDownCallback;
-  PointerCallback pointerUpCallback;
+export void onPointerDown(GtkWidget* widget, PointerCallback callback) {
+  auto* fn = new PointerCallback(std::move(callback));
+  g_object_set_data_full(
+      G_OBJECT(widget), "on-pointer-down", fn,
+      [](gpointer p) { delete static_cast<PointerCallback*>(p); });
+  auto* gesture = gtk_gesture_click_new();
+  gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 0);
+  g_signal_connect(gesture, "pressed",
+                   G_CALLBACK(+[](GtkGestureClick* g, gint, gdouble x,
+                                  gdouble y, gpointer data) {
+                     guint button = gtk_gesture_single_get_current_button(
+                         GTK_GESTURE_SINGLE(g));
+                     (*static_cast<PointerCallback*>(data))(x, y, button);
+                   }),
+                   fn);
+  gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(gesture));
+}
 
- public:
-  PointerEvents* onPointerDown(const PointerCallback& callback) {
-    pointerDownCallback = callback;
-    auto* gesture = gtk_gesture_click_new();
-    gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 0);
-    g_signal_connect(gesture, "pressed",
-                     G_CALLBACK(+[](GtkGestureClick* g, gint, gdouble x,
-                                    gdouble y, gpointer data) {
-                       auto* self = static_cast<PointerEvents*>(data);
-                       guint btn = gtk_gesture_single_get_current_button(GTK_GESTURE_SINGLE(g));
-                       self->pointerDownCallback(x, y, btn);
-                     }),
-                     this);
-    gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(gesture));
-    return this;
-  }
+export void onPointerUp(GtkWidget* widget, PointerCallback callback) {
+  auto* fn = new PointerCallback(std::move(callback));
+  g_object_set_data_full(G_OBJECT(widget), "on-pointer-up", fn, [](gpointer p) {
+    delete static_cast<PointerCallback*>(p);
+  });
+  auto* gesture = gtk_gesture_click_new();
+  gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 0);
+  g_signal_connect(gesture, "released",
+                   G_CALLBACK(+[](GtkGestureClick* g, gint, gdouble x,
+                                  gdouble y, gpointer data) {
+                     guint button = gtk_gesture_single_get_current_button(
+                         GTK_GESTURE_SINGLE(g));
+                     (*static_cast<PointerCallback*>(data))(x, y, button);
+                   }),
+                   fn);
+  gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(gesture));
+}
 
-  PointerEvents* onPointerUp(const PointerCallback& callback) {
-    pointerUpCallback = callback;
-    auto* gesture = gtk_gesture_click_new();
-    gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(gesture), 0);
-    g_signal_connect(gesture, "released",
-                     G_CALLBACK(+[](GtkGestureClick* g, gint, gdouble x,
-                                    gdouble y, gpointer data) {
-                       auto* self = static_cast<PointerEvents*>(data);
-                       guint btn = gtk_gesture_single_get_current_button(GTK_GESTURE_SINGLE(g));
-                       self->pointerUpCallback(x, y, btn);
-                     }),
-                     this);
-    gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(gesture));
-    return this;
-  }
-};
+export void onScroll(GtkWidget* widget,
+                     std::function<void(ScrollDirection)> callback) {
+  using Callback = std::function<void(ScrollDirection)>;
+  auto* fn = new Callback(std::move(callback));
+  g_object_set_data_full(G_OBJECT(widget), "on-scroll", fn,
+                         [](gpointer p) { delete static_cast<Callback*>(p); });
+  auto* ctrl =
+      gtk_event_controller_scroll_new(GTK_EVENT_CONTROLLER_SCROLL_BOTH_AXES);
+  g_signal_connect(ctrl, "scroll",
+                   G_CALLBACK(+[](GtkEventControllerScroll*, gdouble,
+                                  gdouble dy, gpointer data) -> gboolean {
+                     (*static_cast<Callback*>(data))(
+                         dy > 0 ? ScrollDirection::Down : ScrollDirection::Up);
+                     return GDK_EVENT_PROPAGATE;
+                   }),
+                   fn);
+  gtk_widget_add_controller(widget, ctrl);
+}
 
-export class ScrollEvents : virtual public Element {
-  std::function<void(ScrollDirection)> scrollCallback;
+export void onHover(GtkWidget* widget, std::function<void()> callback) {
+  using Callback = std::function<void()>;
+  auto* fn = new Callback(std::move(callback));
+  g_object_set_data_full(G_OBJECT(widget), "on-hover", fn,
+                         [](gpointer p) { delete static_cast<Callback*>(p); });
+  auto* ctrl = gtk_event_controller_motion_new();
+  g_signal_connect(
+      ctrl, "enter",
+      G_CALLBACK(+[](GtkEventControllerMotion*, gdouble, gdouble,
+                     gpointer data) { (*static_cast<Callback*>(data))(); }),
+      fn);
+  gtk_widget_add_controller(widget, ctrl);
+}
 
- public:
-  ScrollEvents* onScroll(const std::function<void(ScrollDirection)>& callback) {
-    scrollCallback = callback;
-    auto* ctrl = gtk_event_controller_scroll_new(GTK_EVENT_CONTROLLER_SCROLL_BOTH_AXES);
-    g_signal_connect(ctrl, "scroll",
-                     G_CALLBACK(+[](GtkEventControllerScroll*, gdouble, gdouble dy,
-                                    gpointer data) -> gboolean {
-                       auto* self = static_cast<ScrollEvents*>(data);
-                       self->scrollCallback(dy > 0 ? ScrollDirection::Down : ScrollDirection::Up);
-                       return GDK_EVENT_PROPAGATE;
-                     }),
-                     this);
-    gtk_widget_add_controller(widget, ctrl);
-    return this;
-  }
-};
+export void onHoverOut(GtkWidget* widget, std::function<void()> callback) {
+  using Callback = std::function<void()>;
+  auto* fn = new Callback(std::move(callback));
+  g_object_set_data_full(G_OBJECT(widget), "on-hover-out", fn,
+                         [](gpointer p) { delete static_cast<Callback*>(p); });
+  auto* ctrl = gtk_event_controller_motion_new();
+  g_signal_connect(ctrl, "leave",
+                   G_CALLBACK(+[](GtkEventControllerMotion*, gpointer data) {
+                     (*static_cast<Callback*>(data))();
+                   }),
+                   fn);
+  gtk_widget_add_controller(widget, ctrl);
+}
 
-export class HoverEvents : virtual public Element {
-  using HoverCallback = std::function<void()>;
-  HoverCallback hoverCallback;
-  HoverCallback hoverOutCallback;
+export void onKeyDown(
+    GtkWidget* widget,
+    std::function<void(guint keyval, GdkModifierType state)> callback) {
+  using Callback = std::function<void(guint, GdkModifierType)>;
+  auto* fn = new Callback(std::move(callback));
+  g_object_set_data_full(G_OBJECT(widget), "on-key-down", fn,
+                         [](gpointer p) { delete static_cast<Callback*>(p); });
+  auto* ctrl = gtk_event_controller_key_new();
+  g_signal_connect(
+      ctrl, "key-pressed",
+      G_CALLBACK(+[](GtkEventControllerKey*, guint keyval, guint,
+                     GdkModifierType state, gpointer data) -> gboolean {
+        (*static_cast<Callback*>(data))(keyval, state);
+        return GDK_EVENT_PROPAGATE;
+      }),
+      fn);
+  gtk_widget_add_controller(widget, ctrl);
+}
 
- public:
-  HoverEvents* onHover(const HoverCallback& callback) {
-    hoverCallback = callback;
-    auto* ctrl = gtk_event_controller_motion_new();
-    g_signal_connect(ctrl, "enter",
-                     G_CALLBACK(+[](GtkEventControllerMotion*, gdouble, gdouble,
-                                    gpointer data) {
-                       static_cast<HoverEvents*>(data)->hoverCallback();
-                     }),
-                     this);
-    gtk_widget_add_controller(widget, ctrl);
-    return this;
-  }
-
-  HoverEvents* onHoverOut(const HoverCallback& callback) {
-    hoverOutCallback = callback;
-    auto* ctrl = gtk_event_controller_motion_new();
-    g_signal_connect(ctrl, "leave",
-                     G_CALLBACK(+[](GtkEventControllerMotion*, gpointer data) {
-                       static_cast<HoverEvents*>(data)->hoverOutCallback();
-                     }),
-                     this);
-    gtk_widget_add_controller(widget, ctrl);
-    return this;
-  }
-};
-
-export class KeyboardEvents : virtual public Element {
-  using Callback = std::function<void(guint keyval, GdkModifierType state)>;
-  Callback keyDownCallback;
-
- public:
-  KeyboardEvents* onKeyDown(const Callback& callback) {
-    keyDownCallback = callback;
-    auto* ctrl = gtk_event_controller_key_new();
-    g_signal_connect(ctrl, "key-pressed",
-                     G_CALLBACK(+[](GtkEventControllerKey*, guint keyval,
-                                    guint, GdkModifierType state,
-                                    gpointer data) -> gboolean {
-                       static_cast<KeyboardEvents*>(data)->keyDownCallback(keyval, state);
-                       return GDK_EVENT_PROPAGATE;
-                     }),
-                     this);
-    gtk_widget_add_controller(widget, ctrl);
-    return this;
-  }
-};
-
-export class VisibilityEvents : virtual public Element {
-  std::function<void()> hideCallback;
-
- public:
-  VisibilityEvents* onHide(const std::function<void()>& callback) {
-    hideCallback = callback;
-    g_signal_connect(widget, "hide",
-                     G_CALLBACK(+[](GtkWidget*, gpointer data) {
-                       static_cast<VisibilityEvents*>(data)->hideCallback();
-                     }),
-                     this);
-    return this;
-  }
-};
+export void onHide(GtkWidget* widget, std::function<void()> callback) {
+  using Callback = std::function<void()>;
+  auto* fn = new Callback(std::move(callback));
+  g_object_set_data_full(G_OBJECT(widget), "on-hide", fn,
+                         [](gpointer p) { delete static_cast<Callback*>(p); });
+  g_signal_connect(widget, "hide", G_CALLBACK(+[](GtkWidget*, gpointer data) {
+                     (*static_cast<Callback*>(data))();
+                   }),
+                   fn);
+}

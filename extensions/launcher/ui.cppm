@@ -1,7 +1,7 @@
 module;
 
-#include <gtk-layer-shell/gtk-layer-shell.h>
 #include <gtk/gtk.h>
+#include <gtk4-layer-shell/gtk4-layer-shell.h>
 
 export module ui;
 
@@ -11,9 +11,9 @@ import elements.label;
 import elements.icon;
 import elements.input;
 import elements.flowbox;
-import elements.event_box;
 import elements.window;
 import elements.menu;
+import elements.events;
 import extension;
 import config;
 import daemon;
@@ -27,22 +27,22 @@ import std;
 class DragDrop;
 
 export class Launcher : public Extension {
-  std::unique_ptr<Window> window;
-  std::unique_ptr<Menu> menu;
+  std::optional<Window> window;
+  std::optional<Menu> menu;
   std::unique_ptr<DragDrop> dragDrop;
-  Input* search;
-  Box* searchPlaceholder;
+  std::optional<Input> search;
+  std::optional<Box> searchPlaceholder;
 
   void launch(const std::string& command, bool terminal = false);
   void openContextMenu(App& app, double x, double y);
-  std::unique_ptr<FlowBox> createGrid();
-  std::unique_ptr<Box> createSearch();
+  FlowBox createGrid();
+  Box createSearch();
   void createWindow();
   void unload();
 
  public:
-  FlowBox* pinGrid;
-  FlowBox* grid;
+  std::optional<FlowBox> pinGrid;
+  std::optional<FlowBox> grid;
   void update(bool sort = true);
   void filter();
 
@@ -97,89 +97,73 @@ class DragDrop {
     gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(source));
   }
 
-  void setupDropTargets(FlowBox* pinGrid, FlowBox* appGrid) {
-    // pin grid drop
-    {
-      GType types[] = {G_TYPE_STRING};
-      auto* target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_MOVE);
+  void setupDropTarget(
+      FlowBox& grid,
+      std::function<void(const char* filename, double x, double y)> onDrop) {
+    auto* target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_MOVE);
 
-      g_signal_connect(
-          target, "motion",
-          G_CALLBACK(+[](GtkDropTarget*, gdouble, gdouble,
-                         gpointer data) -> GdkDragAction {
-            static_cast<Launcher*>(data)->pinGrid->addClass("drag-over");
-            return GDK_ACTION_MOVE;
-          }),
-          launcher);
+    auto* callback = new std::function(std::move(onDrop));
+    g_object_set_data_full(
+        G_OBJECT(target), "on-drop", callback,
+        [](gpointer p) { delete static_cast<decltype(callback)>(p); });
 
-      g_signal_connect(
-          target, "leave", G_CALLBACK(+[](GtkDropTarget*, gpointer data) {
-            static_cast<Launcher*>(data)->pinGrid->removeClass("drag-over");
-          }),
-          launcher);
+    g_signal_connect(target, "motion",
+                     G_CALLBACK(+[](GtkDropTarget* t, gdouble, gdouble,
+                                    gpointer data) -> GdkDragAction {
+                       gtk_widget_add_css_class(GTK_WIDGET(data), "drag-over");
+                       return GDK_ACTION_MOVE;
+                     }),
+                     grid.widget);
 
-      g_signal_connect(
-          target, "drop",
-          G_CALLBACK(+[](GtkDropTarget* t, const GValue* val, gdouble x,
-                         gdouble y, gpointer data) -> gboolean {
-            auto* l = static_cast<Launcher*>(data);
-            l->pinGrid->removeClass("drag-over");
-            if (!G_VALUE_HOLDS_STRING(val)) return FALSE;
-            const char* filename = g_value_get_string(val);
-            GtkWidget* fb = l->pinGrid->widget;
-            GtkFlowBoxChild* childAtPos =
-                gtk_flow_box_get_child_at_pos(GTK_FLOW_BOX(fb), (int)x, (int)y);
-            int dropIndex = childAtPos
-                                ? gtk_flow_box_child_get_index(childAtPos)
-                                : (int)childCount(l->pinGrid->widget);
-            if (Pinned::has(filename))
-              Pinned::reorder(filename, dropIndex);
-            else
-              Pinned::insertAt(filename, dropIndex);
-            l->update();
-            return TRUE;
-          }),
-          launcher);
+    g_signal_connect(
+        target, "leave", G_CALLBACK(+[](GtkDropTarget* t, gpointer data) {
+          gtk_widget_remove_css_class(GTK_WIDGET(data), "drag-over");
+        }),
+        grid.widget);
 
-      gtk_widget_add_controller(pinGrid->widget, GTK_EVENT_CONTROLLER(target));
-    }
-    // app grid drop (unpin)
-    {
-      auto* target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_MOVE);
+    g_signal_connect(
+        target, "drop",
+        G_CALLBACK(+[](GtkDropTarget* t, const GValue* val, gdouble x,
+                       gdouble y, gpointer data) -> gboolean {
+          gtk_widget_remove_css_class(GTK_WIDGET(data), "drag-over");
+          if (!G_VALUE_HOLDS_STRING(val)) return FALSE;
+          auto* callback =
+              static_cast<std::function<void(const char*, double, double)>*>(
+                  g_object_get_data(G_OBJECT(t), "on-drop"));
+          (*callback)(g_value_get_string(val), x, y);
+          return TRUE;
+        }),
+        grid.widget);
 
-      g_signal_connect(
-          target, "motion",
-          G_CALLBACK(+[](GtkDropTarget*, gdouble, gdouble,
-                         gpointer data) -> GdkDragAction {
-            static_cast<Launcher*>(data)->grid->addClass("drag-over");
-            return GDK_ACTION_MOVE;
-          }),
-          launcher);
+    gtk_widget_add_controller(grid.widget, GTK_EVENT_CONTROLLER(target));
+  }
 
-      g_signal_connect(
-          target, "leave", G_CALLBACK(+[](GtkDropTarget*, gpointer data) {
-            static_cast<Launcher*>(data)->grid->removeClass("drag-over");
-          }),
-          launcher);
-
-      g_signal_connect(
-          target, "drop",
-          G_CALLBACK(+[](GtkDropTarget*, const GValue* val, gdouble, gdouble,
-                         gpointer data) -> gboolean {
-            auto* l = static_cast<Launcher*>(data);
-            l->grid->removeClass("drag-over");
-            if (!G_VALUE_HOLDS_STRING(val)) return FALSE;
-            const char* filename = g_value_get_string(val);
-            if (Pinned::has(filename)) {
-              Pinned::toggle(filename, false);
-              l->update();
-            }
-            return TRUE;
-          }),
-          launcher);
-
-      gtk_widget_add_controller(appGrid->widget, GTK_EVENT_CONTROLLER(target));
-    }
+  void setupDropTargets(FlowBox& pinGrid, FlowBox& appGrid) {
+    setupDropTarget(
+        pinGrid, [this, &pinGrid](const char* filename, double x, double y) {
+          GtkFlowBoxChild* childAtPos = gtk_flow_box_get_child_at_pos(
+              GTK_FLOW_BOX(pinGrid.widget), (int)x, (int)y);
+          int dropIndex;
+          if (childAtPos) {
+            dropIndex = gtk_flow_box_child_get_index(childAtPos);
+          } else {
+            dropIndex = 0;
+            for (auto* c = gtk_widget_get_first_child(pinGrid.widget); c;
+                 c = gtk_widget_get_next_sibling(c))
+              dropIndex++;
+          }
+          if (Pinned::has(filename))
+            Pinned::reorder(filename, dropIndex);
+          else
+            Pinned::insertAt(filename, dropIndex);
+          launcher->update();
+        });
+    setupDropTarget(appGrid, [this](const char* filename, double, double) {
+      if (Pinned::has(filename)) {
+        Pinned::toggle(filename, false);
+        launcher->update();
+      }
+    });
   }
 };
 
@@ -223,39 +207,39 @@ void Launcher::launch(const std::string& command, bool terminal) {
 }
 
 void Launcher::openContextMenu(App& app, double x, double y) {
-  menu = std::make_unique<Menu>(app.element->widget);
+  menu.emplace(window->widget);
   menu->addClass("app-menu");
-  menu->onHide([this]() { search->focus(); });
+  onHide(menu->widget, [this]() { search->focus(); });
   {
-    auto item = Pinned::has(app.file)
-                    ? std::make_unique<MenuItem>("Unpin", "cancel")
-                    : std::make_unique<MenuItem>("Pin", "push_pin");
-    item->onClick([&app, this]() {
+    MenuItem item = Pinned::has(app.file) ? MenuItem("Unpin", "cancel")
+                                          : MenuItem("Pin", "push_pin");
+    item.onClick([&app, this]() {
       Pinned::toggle(app.file);
       update();
     });
-    menu->add(std::move(item));
+    menu->add(item);
   }
   {
-    auto item = std::make_unique<MenuItem>("Open folder", "folder_open");
-    item->onClick([&app, this]() {
+    MenuItem item("Open folder", "folder_open");
+    item.onClick([&app, this]() {
       launch("xdg-open " +
              std::filesystem::path(app.file).parent_path().string());
     });
-    menu->add(std::move(item));
+    menu->add(item);
   }
   if (app.actions.size()) {
-    menu->add(std::make_unique<MenuSeparator>());
+    MenuSeparator separator;
+    menu->add(separator);
     for (const auto& action : app.actions) {
-      auto item = std::make_unique<MenuItem>(action.second.label, "");
-      item->addClass("no-icon");
-      item->onClick([&action, &app, this]() {
+      MenuItem item(action.second.label, "");
+      item.addClass("no-icon");
+      item.onClick([&action, &app, this]() {
         launch(action.second.exec, app.isTerminal);
       });
-      menu->add(std::move(item));
+      menu->add(item);
     }
   }
-  menu->visible(true);
+  menu->popupAt(x, y);
 }
 
 bool searchContains(std::string text, std::string query) {
@@ -264,6 +248,22 @@ bool searchContains(std::string text, std::string query) {
   std::ranges::transform(query, query.begin(),
                          [](unsigned char c) { return std::tolower(c); });
   return text.contains(query);
+}
+
+void Launcher::filter() {
+  bool pinnedVisible = false;
+  bool gridVisible = false;
+  for (auto& app : apps) {
+    bool match =
+        search->value().empty() || searchContains(app.label, search->value());
+    if (app.element) app.element->visible(match);
+    if (match && Pinned::has(app.file))
+      pinnedVisible = true;
+    else if (match)
+      gridVisible = true;
+  }
+  pinGrid->visible(pinnedVisible);
+  searchPlaceholder->visible(!pinnedVisible && !gridVisible);
 }
 
 void Launcher::update(bool sort) {
@@ -286,56 +286,75 @@ void Launcher::update(bool sort) {
         });
   }
 
-  pinGrid->children.clear();
-  grid->children.clear();
+  pinGrid->clear();
+  grid->clear();
 
   for (auto& app : apps) {
     if (!search->value().empty() && !searchContains(app.label, search->value()))
       continue;
 
-    auto icon = std::make_unique<Icon>();
-    icon->setImage(app.icon);
-    icon->addClass(app.isCircular ? "circular" : "adaptive");
-    gtk_widget_set_halign(icon->widget, GTK_ALIGN_CENTER);
+    Icon icon;
+    icon.addClass("app-icon");
+    if (app.icon.empty()) {
+      icon.set("widgets");
+      gtk_widget_set_halign(icon.label->widget, GTK_ALIGN_CENTER);
+      gtk_widget_set_valign(icon.label->widget, GTK_ALIGN_CENTER);
+      gtk_widget_set_hexpand(icon.label->widget, true);
+    } else if (!app.isCircular) {
+      icon.addClass("adaptive");
+      icon.setImage(app.icon);
+    } else {
+      icon.setImage(app.icon, 48);
+    }
+    gtk_widget_set_halign(icon.widget, GTK_ALIGN_CENTER);
 
-    auto label = std::make_unique<Label>(app.label);
-    label->addClass("name text-sm");
-    gtk_label_set_ellipsize(GTK_LABEL(label->widget), PANGO_ELLIPSIZE_END);
+    Label label(app.label);
+    label.addClass("name text-sm");
+    label.ellipsize(PANGO_ELLIPSIZE_END);
+    gtk_label_set_justify(GTK_LABEL(label.widget), GTK_JUSTIFY_CENTER);
+    gtk_label_set_xalign(GTK_LABEL(label.widget), 0.5);
+    gtk_widget_set_halign(label.widget, GTK_ALIGN_CENTER);
 
-    auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-    box->add(std::move(icon));
-    box->add(std::move(label));
+    App* appPtr = &app;
+    Box box(GTK_ORIENTATION_VERTICAL);
+    gtk_widget_set_halign(box.widget, GTK_ALIGN_CENTER);
+    box.add(icon);
+    box.add(label);
 
-    auto eventBox = std::make_unique<EventBox>();
-    eventBox->onHover(
-        [&app](bool) { app.element->addState(GTK_STATE_FLAG_PRELIGHT); });
-    eventBox->onHoverOut(
-        [&app](bool) { app.element->removeState(GTK_STATE_FLAG_PRELIGHT); });
-    eventBox->onPointerDown([&app, this](GdkEventButton* event) {
-      if (event->button == GDK_BUTTON_SECONDARY) openContextMenu(app, event);
-    });
-    eventBox->add(std::move(box));
+    FlowBoxChild child =
+        Pinned::has(app.file) ? pinGrid->add(box) : grid->add(box);
+    child.addClass("app");
 
-    EventBox* _eventBox = eventBox.get();
+    onHover(child.widget, [appPtr]() { appPtr->element->addClass("hover"); });
+    onHoverOut(child.widget,
+               [appPtr]() { appPtr->element->removeClass("hover"); });
+    onPointerDown(
+        child.widget, [appPtr, this](double x, double y, guint button) {
+          if (button != GDK_BUTTON_SECONDARY) return;
+          graphene_point_t point = GRAPHENE_POINT_INIT((float)x, (float)y);
+          graphene_point_t windowPoint;
+          gtk_widget_compute_point(appPtr->element->widget, window->widget,
+                                   &point, &windowPoint);
+          openContextMenu(*appPtr, windowPoint.x, windowPoint.y);
+        });
 
-    FlowBoxChild* child = Pinned::has(app.file)
-                              ? pinGrid->add(std::move(eventBox))
-                              : grid->add(std::move(eventBox));
-    child->addClass("app");
-    app.element = child;
+    dragDrop->setupDragAndDrop(child.widget, *appPtr);
 
-    dragDrop->setupDragAndDrop(_eventBox, app);
+    app.element = std::move(child);
   }
 
-  pinGrid->visible(!pinGrid->children.empty());
-  searchPlaceholder->visible(pinGrid->children.empty() &&
-                             grid->children.empty());
+  pinGrid->visible(gtk_widget_get_first_child(pinGrid->widget) != nullptr);
+  searchPlaceholder->visible(!gtk_widget_get_first_child(pinGrid->widget) &&
+                             !gtk_widget_get_first_child(grid->widget));
 }
 
-std::unique_ptr<FlowBox> Launcher::createGrid() {
-  auto grid = std::make_unique<FlowBox>();
-  grid->columns(3);
-  grid->onChildClick([this](GtkFlowBoxChild* child) {
+FlowBox Launcher::createGrid() {
+  FlowBox grid;
+  grid.columns(3);
+  gtk_widget_set_halign(grid.widget, GTK_ALIGN_FILL);
+  gtk_flow_box_set_column_spacing((GtkFlowBox*)grid.widget, 0);
+  gtk_flow_box_set_row_spacing((GtkFlowBox*)grid.widget, 0);
+  grid.onChildClick([this](GtkFlowBoxChild* child) {
     for (auto& app : apps) {
       if (child == (GtkFlowBoxChild*)app.element->widget) {
         launch(app.exec, app.isTerminal);
@@ -347,44 +366,45 @@ std::unique_ptr<FlowBox> Launcher::createGrid() {
   return grid;
 }
 
-std::unique_ptr<Box> Launcher::createSearch() {
-  auto box = std::make_unique<Box>();
-  box->addClass("search");
+Box Launcher::createSearch() {
+  Box box;
+  box.addClass("search");
 
-  auto icon = std::make_unique<Icon>();
-  icon->addClass("start-icon");
-  icon->set("search");
-  box->add(std::move(icon));
+  Icon icon;
+  icon.addClass("start-icon");
+  icon.set("search");
+  box.add(icon);
 
-  auto _search = std::make_unique<Input>();
-  _search->onChange([this] { update(false); });
-  _search->onSubmit([this]() {
-    if (pinGrid->children.size())
-      gtk_widget_activate(pinGrid->children[0]->widget);
-    else if (grid->children.size())
-      gtk_widget_activate(grid->children[0]->widget);
+  search.emplace();
+  search->onChange([this] { filter(); });
+  search->onSubmit([this]() {
+    if (auto* first = gtk_widget_get_first_child(pinGrid->widget))
+      gtk_widget_activate(first);
+    else if (auto* first = gtk_widget_get_first_child(grid->widget))
+      gtk_widget_activate(first);
   });
-  search = _search.get();
-  box->add(std::move(_search));
+  box.add(*search);
   return box;
 }
 
-std::unique_ptr<Box> createSearchPlaceholder() {
-  auto box = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  box->addClass("placeholder");
-  box->gap(24);
+Box createSearchPlaceholder() {
+  Box box(GTK_ORIENTATION_VERTICAL);
+  box.addClass("placeholder");
+  box.gap(24);
 
-  auto ico = std::make_unique<Icon>();
-  ico->set("apps");
-  gtk_widget_set_halign(ico->widget, GTK_ALIGN_CENTER);
-  box->add(std::move(ico));
+  Icon icon;
+  icon.set("apps");
+  gtk_widget_set_halign(icon.widget, GTK_ALIGN_CENTER);
+  box.add(icon);
 
-  box->add(std::make_unique<Label>("No results"));
+  Label label("No results");
+  box.add(label);
   return box;
 }
 
 Launcher::~Launcher() {
-  if (window) window.reset();
+  menu.reset();
+  window.reset();
 }
 
 Extension::Response Launcher::onRequest(std::string_view command) {
@@ -405,21 +425,14 @@ Launcher::Launcher() {
   auto& cacheData = appCache.get();
   if (!cacheData.apps.empty())
     apps.assign(cacheData.apps.begin(), cacheData.apps.end());
-
-  auto lastModified =
-      std::max(std::filesystem::last_write_time(APPLICATIONS),
-               std::filesystem::last_write_time(USER_APPLICATIONS));
-  if (cacheData.updatedAt.empty() ||
-      std::to_string(lastModified.time_since_epoch().count()) >
-          cacheData.updatedAt)
-    refreshApps(lastModified);
+  else
+    refreshApps();
 
   Pinned::syncPinned(apps);
 }
 
 void Launcher::createWindow() {
-  window = std::make_unique<Window>(GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND);
-  window->setNamespace("launcher");
+  window.emplace(GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND, "launcher");
   window->addClass("launcher");
   window->size(440, 540);
 
@@ -427,37 +440,35 @@ void Launcher::createWindow() {
   cssManager->add(cssPath);
   if (std::filesystem::exists(USER_CSS)) cssManager->add(USER_CSS, 100);
 
-  window->onKeyDown([this](guint keyval, GdkModifierType) {
+  onKeyDown(window->widget, [this](guint keyval, GdkModifierType) {
     if (keyval == GDK_KEY_Escape) unload();
   });
 
-  auto body = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  body->addClass("body");
-  body->add(createSearch());
+  Box body(GTK_ORIENTATION_VERTICAL);
+  body.addClass("body");
+  Box search_ = createSearch();
+  body.add(search_);
   {
-    auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+    Box container(GTK_ORIENTATION_VERTICAL);
 
-    auto _pinGrid = createGrid();
-    pinGrid = _pinGrid.get();
+    pinGrid.emplace(createGrid());
     pinGrid->addClass("grid");
-    container->add(std::move(_pinGrid));
+    container.add(*pinGrid);
 
-    auto _grid = createGrid();
-    grid = _grid.get();
+    grid.emplace(createGrid());
     grid->addClass("grid");
-    container->add(std::move(_grid));
+    container.add(*grid);
 
-    auto placeholder = createSearchPlaceholder();
-    searchPlaceholder = placeholder.get();
-    container->add(std::move(placeholder));
+    searchPlaceholder.emplace(createSearchPlaceholder());
+    container.add(*searchPlaceholder);
 
-    auto scrollable = std::make_unique<ScrolledWindow>();
-    scrollable->add(std::move(container));
-    body->add(std::move(scrollable));
+    ScrolledWindow scrollable;
+    scrollable.add(container);
+    body.add(scrollable);
   }
-  window->add(std::move(body));
+  window->add(body);
 
-  dragDrop->setupDropTargets(pinGrid, grid);
+  dragDrop->setupDropTargets(*pinGrid, *grid);
 
   update();
   window->visible();

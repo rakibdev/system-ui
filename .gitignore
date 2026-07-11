@@ -1,8 +1,7 @@
 build/
 .xmake/
 .cache/
-.cursor/
 compile_commands.json
+target/
 
-.zig-cache
-zig-out
+rust/

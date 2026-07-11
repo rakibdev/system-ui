@@ -10,52 +10,94 @@ import elements.label;
 import elements.icon;
 import elements.events;
 
-export class MenuItem : public Element {
-  std::function<void()> clickCallback;
+export struct MenuItem : Element {
+  MenuItem(const std::string& label, const std::string& icon = "")
+      : Element(gtk_list_box_row_new()) {
+    addClass("menu-item");
 
- public:
-  MenuItem(const std::string& label, const std::string& icon = "") {
-    widget = gtk_menu_item_new();
-    auto box = std::make_unique<Box>();
+    Box box;
     if (!icon.empty()) {
-      auto _icon = std::make_unique<Icon>();
-      _icon->set(icon);
-      _icon->addClass("start-icon");
-      box->add(std::move(_icon));
+      Icon _icon;
+      _icon.set(icon);
+      _icon.addClass("start-icon");
+      box.add(_icon);
     }
-    auto _label = std::make_unique<Label>();
-    _label->set(label);
-    box->add(std::move(_label));
-    add(std::move(box));
+    Label _label(label);
+    box.add(_label);
+
+    gtk_list_box_row_set_child((GtkListBoxRow*)widget, box.widget);
   }
 
-  MenuItem* onClick(const std::function<void()>& callback) {
-    clickCallback = callback;
-    g_signal_connect_swapped(widget, "activate",
-                             G_CALLBACK(+[](MenuItem* self) {
-                               if (self->clickCallback) self->clickCallback();
-                             }),
-                             this);
-    return this;
+  MenuItem& onClick(std::function<void()> callback) {
+    auto* fn = new std::function<void()>(std::move(callback));
+    g_object_set_data_full(G_OBJECT(widget), "on-click", fn, [](gpointer p) {
+      delete static_cast<std::function<void()>*>(p);
+    });
+    return *this;
   }
 };
 
-export class MenuSeparator : public Element {
- public:
-  MenuSeparator() { widget = gtk_separator_menu_item_new(); }
+export struct MenuSeparator : Element {
+  MenuSeparator() : Element(gtk_separator_new(GTK_ORIENTATION_HORIZONTAL)) {}
 };
 
-export class Menu : public VisibilityEvents {
- public:
-  Menu() { widget = gtk_menu_new(); }
-  Menu* add(std::unique_ptr<Element>&& child) {
-    gtk_menu_shell_append((GtkMenuShell*)widget, child->widget);
-    child->visible();
-    children.emplace_back(std::move(child));
-    return this;
+export struct Menu : Element {
+  GtkWidget* listbox;
+
+  explicit Menu(GtkWidget* parent = nullptr) : Element(gtk_popover_new()) {
+    listbox = gtk_list_box_new();
+    gtk_list_box_set_selection_mode((GtkListBox*)listbox, GTK_SELECTION_NONE);
+    gtk_popover_set_has_arrow((GtkPopover*)widget, false);
+    gtk_popover_set_child((GtkPopover*)widget, listbox);
+
+    g_signal_connect(
+        listbox, "row-activated",
+        G_CALLBACK(+[](GtkListBox*, GtkListBoxRow* row, gpointer data) {
+          auto* self = static_cast<Menu*>(data);
+          auto* callback = static_cast<std::function<void()>*>(
+              g_object_get_data(G_OBJECT(row), "on-click"));
+          if (callback) {
+            self->visible(false);
+            (*callback)();
+          }
+        }),
+        this);
+
+    if (parent) setParent(parent);
   }
-  Menu* visible(bool value = true) override {
-    if (value) gtk_menu_popup_at_pointer((GtkMenu*)widget, nullptr);
-    return this;
+
+  void setParent(GtkWidget* parent) { gtk_widget_set_parent(widget, parent); }
+
+  Menu& add(MenuSeparator& separator) {
+    auto* row = gtk_list_box_row_new();
+    gtk_list_box_row_set_activatable((GtkListBoxRow*)row, false);
+    gtk_list_box_row_set_child((GtkListBoxRow*)row, separator.widget);
+    gtk_list_box_append((GtkListBox*)listbox, row);
+    return *this;
+  }
+
+  Menu& add(MenuItem& item) {
+    gtk_widget_add_css_class(item.widget, "list-item");
+    gtk_list_box_append((GtkListBox*)listbox, item.widget);
+    return *this;
+  }
+
+  Menu& visible(bool value = true) {
+    if (value)
+      gtk_popover_popup((GtkPopover*)widget);
+    else
+      gtk_popover_popdown((GtkPopover*)widget);
+    return *this;
+  }
+
+  Menu& popupAt(double x, double y) {
+    GdkRectangle rect = {(int)x, (int)y, 1, 1};
+    gtk_popover_set_pointing_to((GtkPopover*)widget, &rect);
+    visible(true);
+    return *this;
+  }
+
+  ~Menu() {
+    if (gtk_widget_get_parent(widget)) gtk_widget_unparent(widget);
   }
 };
