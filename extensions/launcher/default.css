@@ -52,10 +52,6 @@
   margin-top: 8px;
 }
 
-.app-menu > contents {
-  border: 1px solid @border;
-}
-
 .app-menu .list-item {
   min-height: 40px;
   padding: 0 16px;
