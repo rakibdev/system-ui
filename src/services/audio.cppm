@@ -30,11 +30,12 @@ struct Node {
   spa_hook listener;
 };
 
-struct Route { int index; int profileDeviceId; };
+struct Route { int index = -1; int profileDeviceId = -1; };
 
 struct Device {
   std::uint32_t id;
-  Route ouput;
+  Route input;
+  Route output;
   pw_proxy* proxy;
   spa_hook listener;
 };
@@ -71,6 +72,12 @@ std::unique_ptr<Debounce> changeCallback;
 float cubicFromLinear(float v) { return std::cbrt(v); }
 float linearFromCubic(float v) { return v * v * v; }
 
+struct LoopLock {
+  pw_thread_loop* loop;
+  LoopLock(pw_thread_loop* loop) : loop(loop) { pw_thread_loop_lock(loop); }
+  ~LoopLock() { pw_thread_loop_unlock(loop); }
+};
+
 void onChange(const std::function<void()>& callback) {
   changeCallback = std::make_unique<Debounce>(100, callback);
 }
@@ -97,15 +104,16 @@ void volume(Node* node, std::uint16_t volumePercent) {
   struct spa_pod_builder builder;
   spa_pod_builder_init(&builder, buffer, sizeof(buffer));
   struct spa_pod* pod;
-  pw_thread_loop_lock(loop);
+  LoopLock lock(loop);
   if (node->deviceId) {
     Device* device = getDeviceById(node->deviceId);
-    if (!device) { pw_thread_loop_unlock(loop); return; }
+    if (!device) return;
+    Route& route = node->type == NodeType::Sink ? device->output : device->input;
     struct spa_pod_frame frame[2];
     spa_pod_builder_push_object(&builder, &frame[0], SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route);
     spa_pod_builder_add(&builder,
-                        SPA_PARAM_ROUTE_index, SPA_POD_Int(device->ouput.index),
-                        SPA_PARAM_ROUTE_device, SPA_POD_Int(device->ouput.profileDeviceId), 0);
+                        SPA_PARAM_ROUTE_index, SPA_POD_Int(route.index),
+                        SPA_PARAM_ROUTE_device, SPA_POD_Int(route.profileDeviceId), 0);
     spa_pod_builder_prop(&builder, SPA_PARAM_ROUTE_props, 0);
     buildVolumePod(&builder, &frame[1], cubicVolume, node->channels);
     pod = (spa_pod*)spa_pod_builder_pop(&builder, &frame[0]);
@@ -115,11 +123,10 @@ void volume(Node* node, std::uint16_t volumePercent) {
     pod = buildVolumePod(&builder, &frame, cubicVolume, node->channels);
     pw_node_set_param((pw_node*)node->proxy, SPA_PARAM_Props, 0, pod);
   }
-  pw_thread_loop_unlock(loop);
 }
 
 void setDefault(Node* node) {
-  std::string key = node->type == NodeType::Sink ? "default.audio.sink" : "default.audio.source";
+  std::string key = node->type == NodeType::Sink ? "default.configured.audio.sink" : "default.configured.audio.source";
   std::string value = "{\"name\":\"" + node->name + "\"}";
   pw_thread_loop_lock(loop);
   pw_metadata_set_property((pw_metadata*)metadata, 0, key.c_str(), "Spa:String:JSON", value.c_str());
@@ -190,17 +197,14 @@ void onDeviceParam(void* data, int, std::uint32_t, std::uint32_t, std::uint32_t,
   Device* device = (Device*)data;
   spa_pod_object* object = (spa_pod_object*)param;
   spa_pod_prop* prop;
+  Route route;
+  std::uint32_t direction = SPA_DIRECTION_OUTPUT;
   SPA_POD_OBJECT_FOREACH(object, prop) {
-    if (prop->key == SPA_PARAM_ROUTE_direction) {
-      std::uint32_t direction;
-      spa_pod_get_id(&prop->value, &direction);
-      if (direction != SPA_DIRECTION_OUTPUT) break;
-    }
-    if (prop->key == SPA_PARAM_ROUTE_device)
-      spa_pod_get_int(&prop->value, &device->ouput.profileDeviceId);
-    if (prop->key == SPA_PARAM_ROUTE_index)
-      spa_pod_get_int(&prop->value, &device->ouput.index);
+    if (prop->key == SPA_PARAM_ROUTE_index) spa_pod_get_int(&prop->value, &route.index);
+    if (prop->key == SPA_PARAM_ROUTE_direction) spa_pod_get_id(&prop->value, &direction);
+    if (prop->key == SPA_PARAM_ROUTE_device) spa_pod_get_int(&prop->value, &route.profileDeviceId);
   }
+  (direction == SPA_DIRECTION_INPUT ? device->input : device->output) = route;
 }
 
 std::string iconFromName(const std::string& name) {
@@ -208,7 +212,7 @@ std::string iconFromName(const std::string& name) {
   if (name.find("headphone") != std::string::npos || name.find("headset") != std::string::npos) return "headphones";
   if (name.find("speaker") != std::string::npos) return "speaker";
   if (name.find("webcam") != std::string::npos || name.find("camera") != std::string::npos) return "videocam";
-  if (name.find("bluetooth") != std::string::npos) return "bluetooth_audio";
+  if (name.find("bluez") != std::string::npos) return "bluetooth_audio";
   if (name.find("usb") != std::string::npos) return "usb";
   return "";
 }

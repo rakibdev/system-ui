@@ -1,7 +1,7 @@
 module;
-#include <gtk/gtk.h>
 #include <gdk/gdk.h>
-#include <gtk-layer-shell.h>
+#include <gtk/gtk.h>
+#include <gtk4-layer-shell/gtk4-layer-shell.h>
 
 export module audio_dialog;
 
@@ -13,6 +13,7 @@ import elements.icon;
 import elements.button;
 import elements.slider;
 import elements.window;
+import elements.events;
 import audio;
 import debounce;
 
@@ -29,240 +30,326 @@ void destroy();
 }
 
 namespace AudioDialog {
-std::unique_ptr<Window> window;
+std::optional<Window> window;
+std::optional<Box> container;
+std::optional<Label> outputHeader;
+std::optional<Box> outputBox;
+std::optional<Label> inputHeader;
+std::optional<Box> inputBox;
 bool dragging = false;
 bool initialized = false;
 std::unique_ptr<Debounce> onDragEnd;
 
-
-
-void refreshSliders();
+GtkWidget* outputDropdown = nullptr;
+GtkWidget* inputDropdown = nullptr;
+bool updatingDropdowns = false;
 
 struct SliderRow {
-  Audio::Node* node;
-  Slider* slider;
-  GtkWidget* overlay;
-  Label* percent;
-  Label* name;
-  Icon* activeDot;
-  Box* row;
+  Audio::Node* node = nullptr;
+  Box container{GTK_ORIENTATION_VERTICAL};
+  Label percent;
+  Slider slider;
+  Icon deviceIcon;
+  GtkWidget* overlay = nullptr;
+
+  SliderRow(Box& section) {
+    container.addClass("audio-row");
+    container.gap(6);
+
+    percent.addClass("slider-percent");
+    gtk_widget_set_halign(percent.widget, GTK_ALIGN_START);
+    container.add(percent);
+
+    Box row{GTK_ORIENTATION_HORIZONTAL};
+    row.gap(12);
+    deviceIcon.addClass("device-icon");
+    row.add(deviceIcon);
+
+    overlay = gtk_overlay_new();
+    gtk_widget_set_hexpand(overlay, true);
+
+    slider.addClass("audio-trough");
+    gtk_range_set_range((GtkRange*)slider.widget, 0, 100);
+    gtk_range_set_increments((GtkRange*)slider.widget, 1, 5);
+    onPointerDown(slider.widget,
+                  [](double, double, guint) { dragging = true; });
+    onPointerUp(slider.widget,
+                [this](double, double, guint) { dragging = false; });
+    onScroll(slider.widget, [this](ScrollDirection dir) {
+      if (!node) return;
+      dragging = true;
+      if (onDragEnd) onDragEnd->call();
+      std::int16_t delta = dir == ScrollDirection::Up ? 5 : -5;
+      std::uint16_t newVolume =
+          std::clamp<std::int16_t>(node->volume + delta, 0, 100);
+      Audio::volume(node, newVolume);
+    });
+    slider.onChange([this] {
+      if (!dragging || !node) return;
+      Audio::volume(node, (std::uint16_t)slider.value());
+    });
+    gtk_overlay_set_child(GTK_OVERLAY(overlay), slider.widget);
+
+    Box overlayBox;
+    gtk_widget_set_hexpand(overlayBox.widget, true);
+    gtk_box_append((GtkBox*)overlayBox.widget, overlay);
+    row.add(overlayBox);
+
+    container.add(row);
+    section.add(container);
+  }
+
+  void setNode(Audio::Node* newNode) {
+    node = newNode;
+    if (node) {
+      if (!dragging) slider.value(node->volume);
+      percent.set(std::format("{}%", node->volume));
+      deviceIcon.set(node->icon);
+      container.visible(true);
+    } else {
+      container.visible(false);
+    }
+  }
+
+  void refresh() {
+    if (node) {
+      if (!dragging) slider.value(node->volume);
+      percent.set(std::format("{}%", node->volume));
+    }
+  }
 };
-std::vector<SliderRow> sinkRows;
-std::vector<SliderRow> sourceRows;
+
+std::optional<SliderRow> sinkRow;
+std::optional<SliderRow> sourceRow;
+std::vector<Audio::Node*> activeSinks;
+std::vector<Audio::Node*> activeSources;
 
 void setParent(Box* body, Window* window) {
   parentBody = body;
   parentWindow = window;
 }
 
-void adjustVolume(Audio::Node* node, ScrollDirection direction) {
-  std::int16_t delta = direction == ScrollDirection::Up ? 5 : -5;
-  std::uint16_t newVolume = std::clamp((std::int16_t)node->volume + delta, (std::int16_t)0, (std::int16_t)100);
-  Audio::volume(node, newVolume);
+bool shouldSkipNode(Audio::Node* node) {
+  return node->label.starts_with("Family 17h");
 }
 
-void updateRow(SliderRow& row) {
-  if (!row.slider) return;
-  if (!dragging) row.slider->value(row.node->volume);
-  row.percent->set(std::to_string(row.node->volume) + "%");
-}
-
-SliderRow createSlider(Box* section, Audio::Node* node, bool isActive) {
-  auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  container->addClass("audio-row");
-  if (isActive) container->addClass("active");
-  container->gap(6);
-
-  Label* namePtr = nullptr;
-  Label* percentPtr = nullptr;
-
-  {
-    auto header = std::make_unique<Box>();
-    header->gap(8);
-    auto name = std::make_unique<Label>();
-    namePtr = name.get();
-    name->set(node->label);
-    name->addClass("device-name");
-    gtk_widget_set_halign(name->widget, GTK_ALIGN_START);
-    gtk_label_set_ellipsize(GTK_LABEL(name->widget), PANGO_ELLIPSIZE_END);
-    auto spacer = std::make_unique<Box>();
-    gtk_widget_set_hexpand(spacer->widget, true);
-    auto percent = std::make_unique<Label>();
-    percentPtr = percent.get();
-    percent->set(std::to_string(node->volume) + "%");
-    percent->addClass("slider-percent");
-    gtk_widget_set_halign(percent->widget, GTK_ALIGN_END);
-    header->add(std::move(name));
-    header->add(std::move(spacer));
-    header->add(std::move(percent));
-    container->add(std::move(header));
+bool devicesChanged(std::vector<std::unique_ptr<Audio::Node>>& currentNodes,
+                    std::vector<Audio::Node*>& activeNodes) {
+  std::vector<Audio::Node*> currentActive;
+  for (const auto& node : currentNodes) {
+    if (!shouldSkipNode(node.get())) currentActive.push_back(node.get());
   }
-
-  auto row = std::make_unique<Box>(GTK_ORIENTATION_HORIZONTAL);
-  row->gap(12);
-  auto icon = std::make_unique<Icon>();
-  icon->set(node->icon);
-  icon->addClass("device-icon");
-  row->add(std::move(icon));
-
-  auto overlay = gtk_overlay_new();
-  gtk_widget_set_hexpand(overlay, true);
-
-  auto slider = std::make_unique<Slider>();
-  slider->addClass("audio-trough");
-  gtk_range_set_range((GtkRange*)slider->widget, 0, 100);
-  slider->value(node->volume);
-  gtk_range_set_increments((GtkRange*)slider->widget, 1, 5);
-  slider->onPointerDown([](GdkEventButton*) { dragging = true; });
-  slider->onPointerUp([node](GdkEventButton*) {
-    dragging = false;
-    Audio::setDefault(node);
-  });
-  slider->onScroll([node](ScrollDirection dir) {
-    dragging = true;
-    if (onDragEnd) onDragEnd->call();
-    adjustVolume(node, dir);
-  });
-  slider->onChange([node, sliderPtr = slider.get()]() {
-    if (!dragging) return;
-    Audio::volume(node, (std::uint16_t)sliderPtr->value());
-  });
-
-  gtk_container_add(GTK_CONTAINER(overlay), slider->widget);
-
-  auto activeDot = std::make_unique<Icon>();
-  activeDot->addClass("active-dot");
-  activeDot->set("fiber_manual_record");
-  gtk_widget_set_halign(activeDot->widget, GTK_ALIGN_END);
-  gtk_widget_set_valign(activeDot->widget, GTK_ALIGN_CENTER);
-  gtk_widget_set_margin_end(activeDot->widget, 8);
-  gtk_overlay_add_overlay(GTK_OVERLAY(overlay), activeDot->widget);
-  gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(overlay), activeDot->widget, true);
-  if (!isActive) gtk_widget_set_visible(activeDot->widget, false);
-
-  Slider* sliderPtr = slider.get();
-  Icon* dotPtr = activeDot.get();
-  Box* containerPtr = container.get();
-
-  row->children.push_back(std::move(slider));
-  row->children.push_back(std::move(activeDot));
-
-  auto overlayBox = std::make_unique<Box>();
-  gtk_widget_set_hexpand(overlayBox->widget, true);
-  gtk_container_add(GTK_CONTAINER(overlayBox->widget), overlay);
-  row->add(std::move(overlayBox));
-
-  container->add(std::move(row));
-  gtk_widget_show_all(container->widget);
-  section->add(std::move(container));
-
-  SliderRow result = {node, sliderPtr, overlay, percentPtr, namePtr, dotPtr, containerPtr};
-  updateRow(result);
-  return result;
+  return currentActive != activeNodes;
 }
 
-bool shouldSkipNode(Audio::Node* node) { return node->label.starts_with("Family 17h"); }
-
-void populateSection(Box* section, std::vector<std::unique_ptr<Audio::Node>>& nodes,
-                     Audio::Node* defaultNode, std::vector<SliderRow>& rows) {
-  auto children = gtk_container_get_children(GTK_CONTAINER(section->widget));
-  for (GList* l = children; l; l = l->next) gtk_widget_destroy(GTK_WIDGET(l->data));
-  g_list_free(children);
-  section->children.clear();
-  rows.clear();
+void populateDropdown(GtkWidget* dropDownWidget,
+                      std::vector<std::unique_ptr<Audio::Node>>& nodes,
+                      Audio::Node* defaultNode,
+                      std::vector<Audio::Node*>& activeNodes) {
+  activeNodes.clear();
+  std::vector<const char*> strings;
+  int selectedIndex = -1;
+  int index = 0;
   for (const auto& node : nodes) {
     if (shouldSkipNode(node.get())) continue;
-    if (node.get() == defaultNode) rows.push_back(createSlider(section, node.get(), true));
+    activeNodes.push_back(node.get());
+    strings.push_back(node->label.c_str());
+    if (node.get() == defaultNode) {
+      selectedIndex = index;
+    }
+    index++;
   }
-  for (const auto& node : nodes) {
-    if (shouldSkipNode(node.get())) continue;
-    if (node.get() != defaultNode) rows.push_back(createSlider(section, node.get(), false));
+  strings.push_back(nullptr);
+
+  GtkStringList* string_list = gtk_string_list_new(strings.data());
+  updatingDropdowns = true;
+  gtk_drop_down_set_model(GTK_DROP_DOWN(dropDownWidget),
+                          G_LIST_MODEL(string_list));
+  if (selectedIndex != -1) {
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(dropDownWidget), selectedIndex);
   }
+  updatingDropdowns = false;
 }
 
-void updateSection(std::vector<SliderRow>& rows, Audio::Node* defaultNode) {
-  for (auto& r : rows) {
-    updateRow(r);
-    bool isActive = r.node == defaultNode;
-    if (isActive) { r.row->addClass("active"); r.activeDot->visible(true); }
-    else { r.row->removeClass("active"); r.activeDot->visible(false); }
+void updateDropdownSelection(GtkWidget* dropDownWidget,
+                             std::vector<Audio::Node*>& activeNodes,
+                             Audio::Node* defaultNode) {
+  int selectedIndex = -1;
+  for (size_t i = 0; i < activeNodes.size(); i++) {
+    if (activeNodes[i] == defaultNode) {
+      selectedIndex = i;
+      break;
+    }
+  }
+  if (selectedIndex != -1 && (int)gtk_drop_down_get_selected(GTK_DROP_DOWN(
+                                 dropDownWidget)) != selectedIndex) {
+    updatingDropdowns = true;
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(dropDownWidget), selectedIndex);
+    updatingDropdowns = false;
   }
 }
 
 void refreshSliders() {
-  updateSection(sinkRows, Audio::defaultSink);
-  updateSection(sourceRows, Audio::defaultSource);
+  if (sinkRow) sinkRow->refresh();
+  if (sourceRow) sourceRow->refresh();
+}
+
+void setupDropdownRow(GtkListItemFactory*, GtkListItem* item, gpointer) {
+  Box* row = new Box(GTK_ORIENTATION_HORIZONTAL);
+  row->gap(8);
+  Icon* icon = new Icon();
+  Label* label = new Label();
+  label->ellipsize();
+  gtk_widget_set_hexpand(label->widget, true);
+  row->add(*icon);
+  row->add(*label);
+  g_object_set_data(G_OBJECT(row->widget), "row-icon", icon);
+  g_object_set_data(G_OBJECT(row->widget), "row-label", label);
+  g_object_set_data_full(G_OBJECT(row->widget), "row-box", row,
+                         [](gpointer p) { delete static_cast<Box*>(p); });
+  gtk_list_item_set_child(item, row->widget);
+}
+
+void bindDropdownRow(GtkListItemFactory*, GtkListItem* item, gpointer data) {
+  auto* activeNodes = static_cast<std::vector<Audio::Node*>*>(data);
+  guint position = gtk_list_item_get_position(item);
+  if (position >= activeNodes->size()) return;
+  Audio::Node* node = (*activeNodes)[position];
+  GtkWidget* row = gtk_list_item_get_child(item);
+  auto* icon = static_cast<Icon*>(g_object_get_data(G_OBJECT(row), "row-icon"));
+  auto* label =
+      static_cast<Label*>(g_object_get_data(G_OBJECT(row), "row-label"));
+  icon->set(node->icon);
+  label->set(node->label);
+}
+
+GtkListItemFactory* createDropdownFactory(
+    std::vector<Audio::Node*>* activeNodes) {
+  GtkListItemFactory* factory = gtk_signal_list_item_factory_new();
+  g_signal_connect(factory, "setup", G_CALLBACK(setupDropdownRow), nullptr);
+  g_signal_connect(factory, "bind", G_CALLBACK(bindDropdownRow), activeNodes);
+  return factory;
 }
 
 void update() {
   if (!window) return;
-  if (!initialized) {
-    populateSection(outputSection, Audio::sinks, Audio::defaultSink, sinkRows);
-    populateSection(inputSection, Audio::sources, Audio::defaultSource, sourceRows);
-    initialized = true;
+
+  if (devicesChanged(Audio::sinks, activeSinks)) {
+    populateDropdown(outputDropdown, Audio::sinks, Audio::defaultSink,
+                     activeSinks);
   } else {
-    updateSection(sinkRows, Audio::defaultSink);
-    updateSection(sourceRows, Audio::defaultSource);
+    updateDropdownSelection(outputDropdown, activeSinks, Audio::defaultSink);
   }
+  if (sinkRow) sinkRow->setNode(Audio::defaultSink);
+
+  if (devicesChanged(Audio::sources, activeSources)) {
+    populateDropdown(inputDropdown, Audio::sources, Audio::defaultSource,
+                     activeSources);
+  } else {
+    updateDropdownSelection(inputDropdown, activeSources, Audio::defaultSource);
+  }
+  if (sourceRow) sourceRow->setNode(Audio::defaultSource);
 }
 
 void create() {
   if (window) return;
-  onDragEnd = std::make_unique<Debounce>(400, []() { dragging = false; });
-  window = std::make_unique<Window>(GTK_WINDOW_POPUP, GTK_LAYER_SHELL_KEYBOARD_MODE_ON_DEMAND);
-  gtk_layer_set_namespace((GtkWindow*)window->widget, "system-ui-audio-dialog");
-  gtk_layer_set_anchor((GtkWindow*)window->widget, GTK_LAYER_SHELL_EDGE_TOP, true);
-  gtk_layer_set_anchor((GtkWindow*)window->widget, GTK_LAYER_SHELL_EDGE_BOTTOM, true);
-  gtk_layer_set_anchor((GtkWindow*)window->widget, GTK_LAYER_SHELL_EDGE_LEFT, true);
-  gtk_layer_set_anchor((GtkWindow*)window->widget, GTK_LAYER_SHELL_EDGE_RIGHT, true);
+  onDragEnd = std::make_unique<Debounce>(400, [] { dragging = false; });
+  window.emplace(GTK_LAYER_SHELL_KEYBOARD_MODE_NONE, "panel");
+  window->size(360, 320);
   window->addClass("audio-dialog");
-  window->onKeyDown([](GdkEventKey* event) { if (event->keyval == GDK_KEY_Escape) destroy(); });
-  gtk_widget_set_hexpand(window->widget, true);
-  gtk_widget_set_vexpand(window->widget, true);
+  onKeyDown(window->widget, [](guint keyval, GdkModifierType) {
+    if (keyval == GDK_KEY_Escape) destroy();
+  });
 
-  auto container = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
+  container.emplace(GTK_ORIENTATION_VERTICAL);
   container->addClass("audio-dialog-container");
   container->gap(16);
-  gtk_widget_set_halign(container->widget, GTK_ALIGN_CENTER);
-  gtk_widget_set_valign(container->widget, GTK_ALIGN_CENTER);
 
-  {
-    auto outputHeader = std::make_unique<Label>();
-    outputHeader->set("Output");
-    outputHeader->addClass("section-header");
-    gtk_widget_set_halign(outputHeader->widget, GTK_ALIGN_START);
-    container->add(std::move(outputHeader));
-  }
+  outputHeader.emplace("Output");
+  outputHeader->addClass("section-header");
+  gtk_widget_set_halign(outputHeader->widget, GTK_ALIGN_START);
+  container->add(*outputHeader);
 
-  auto _outputSection = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  _outputSection->gap(8);
-  outputSection = _outputSection.get();
-  container->add(std::move(_outputSection));
+  outputBox.emplace(GTK_ORIENTATION_VERTICAL);
+  outputBox->gap(8);
+  outputSection = &*outputBox;
+  container->add(*outputBox);
 
-  auto inputHeader = std::make_unique<Label>();
-  inputHeader->set("Input");
+  outputDropdown = gtk_drop_down_new(nullptr, nullptr);
+  gtk_widget_set_hexpand(outputDropdown, true);
+  gtk_drop_down_set_factory(GTK_DROP_DOWN(outputDropdown),
+                            createDropdownFactory(&activeSinks));
+  gtk_drop_down_set_list_factory(GTK_DROP_DOWN(outputDropdown),
+                                 createDropdownFactory(&activeSinks));
+  g_signal_connect(outputDropdown, "notify::selected",
+                   G_CALLBACK(+[](GObject* self, GParamSpec*, gpointer) {
+                     if (updatingDropdowns) return;
+                     guint selected =
+                         gtk_drop_down_get_selected(GTK_DROP_DOWN(self));
+                     if (selected < activeSinks.size()) {
+                       Audio::setDefault(activeSinks[selected]);
+                     }
+                   }),
+                   nullptr);
+  gtk_box_append((GtkBox*)outputBox->widget, outputDropdown);
+
+  sinkRow.emplace(*outputBox);
+
+  inputHeader.emplace("Input");
   inputHeader->addClass("section-header");
   gtk_widget_set_halign(inputHeader->widget, GTK_ALIGN_START);
-  container->add(std::move(inputHeader));
+  container->add(*inputHeader);
 
-  auto _inputSection = std::make_unique<Box>(GTK_ORIENTATION_VERTICAL);
-  _inputSection->gap(8);
-  inputSection = _inputSection.get();
-  container->add(std::move(_inputSection));
+  inputBox.emplace(GTK_ORIENTATION_VERTICAL);
+  inputBox->gap(8);
+  inputSection = &*inputBox;
+  container->add(*inputBox);
 
-  window->add(std::move(container));
+  inputDropdown = gtk_drop_down_new(nullptr, nullptr);
+  gtk_widget_set_hexpand(inputDropdown, true);
+  gtk_drop_down_set_factory(GTK_DROP_DOWN(inputDropdown),
+                            createDropdownFactory(&activeSources));
+  gtk_drop_down_set_list_factory(GTK_DROP_DOWN(inputDropdown),
+                                 createDropdownFactory(&activeSources));
+  g_signal_connect(inputDropdown, "notify::selected",
+                   G_CALLBACK(+[](GObject* self, GParamSpec*, gpointer) {
+                     if (updatingDropdowns) return;
+                     guint selected =
+                         gtk_drop_down_get_selected(GTK_DROP_DOWN(self));
+                     if (selected < activeSources.size()) {
+                       Audio::setDefault(activeSources[selected]);
+                     }
+                   }),
+                   nullptr);
+  gtk_box_append((GtkBox*)inputBox->widget, inputDropdown);
+
+  sourceRow.emplace(*inputBox);
+
+  window->add(*container);
+
+  activeSinks.clear();
+  activeSources.clear();
+
   update();
   window->visible();
-  gtk_window_present((GtkWindow*)window->widget);
 }
 
 void destroy() {
   onDragEnd.reset();
+  sinkRow.reset();
+  sourceRow.reset();
   window.reset();
+  container.reset();
+  outputHeader.reset();
+  outputBox.reset();
+  inputHeader.reset();
+  inputBox.reset();
   outputSection = nullptr;
   inputSection = nullptr;
-  sinkRows.clear();
-  sourceRows.clear();
+  outputDropdown = nullptr;
+  inputDropdown = nullptr;
+  activeSinks.clear();
+  activeSources.clear();
   initialized = false;
 }
 }

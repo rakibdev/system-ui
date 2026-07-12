@@ -310,7 +310,7 @@ void Launcher::update(bool sort) {
 
     Label label(app.label);
     label.addClass("name text-sm");
-    label.ellipsize(PANGO_ELLIPSIZE_END);
+    label.ellipsize();
     gtk_label_set_justify(GTK_LABEL(label.widget), GTK_JUSTIFY_CENTER);
     gtk_label_set_xalign(GTK_LABEL(label.widget), 0.5);
     gtk_widget_set_halign(label.widget, GTK_ALIGN_CENTER);

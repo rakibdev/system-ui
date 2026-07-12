@@ -7,6 +7,6 @@ target("media")
     build_in_root()
 
     add_files("*.cpp")
-    add_files(sdk("services/media.cppm"), sdk("utils/log.cppm"), sdk("utils/argparser.cppm"))
+    add_files(sdk("services/media.cppm"), sdk("utils/log.cppm"), sdk("utils/log.impl.cppm"), sdk("utils/argparser.cppm"))
 
     add_packages("gio-2.0")

@@ -22,12 +22,19 @@
   margin-top: 4px;
 }
 
+.quick-settings .tile.filled .title,
+.quick-settings .tile.filled .description,
+.quick-settings .tile.filled .start-icon label,
+.quick-settings .tile.filled .end-icon label {
+  color: @primaryForeground;
+}
+
 .quick-settings .footer {
   margin-top: 8px;
 }
 
 .quick-settings .player {
-  margin-top: 8px;
+  margin-top: 16px;
   padding: 16px;
   border-radius: 16px;
   background-color: @card;
@@ -37,7 +44,7 @@
 
 .quick-settings .player .title {
   font-weight: bold;
-  margin-right: 8px;
+  margin-right: 16px;
 }
 
 .quick-settings .player .play-pause {
@@ -45,16 +52,16 @@
   min-height: 48px;
   border-radius: 8px;
   transition: border-radius 0.2s;
+  background-color: @card;
+  color: @foreground;
 }
 
 .quick-settings .player.playing .play-pause {
   border-radius: 24px;
 }
 
-.quick-settings .player trough {
-  min-height: 24px;
-  margin: 24px;
-  border-radius: 24px;
+.quick-settings .player .media-trough {
+  margin-top: 8px;
 }
 
 .notification-item {
@@ -113,36 +120,9 @@
   color: @foreground;
 }
 
-.audio-row .active-dot {
-  font-size: 16px;
-  color: @primaryForeground;
-}
-
-.audio-trough trough {
+.audio-trough trough,
+.quick-settings trough {
   min-height: 40px;
-  border-radius: 24px;
-  background-color: @secondary;
+  background-color: @card;
 }
 
-.audio-trough trough highlight {
-  background-color: @primary;
-  border-radius: 24px;
-}
-
-.audio-trough trough fill {
-  background-color: transparent;
-  border-radius: 24px;
-}
-
-
-.audio-trough slider {
-  all: unset;
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  box-shadow: none;
-  opacity: 0;
-}
