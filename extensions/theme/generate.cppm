@@ -42,60 +42,22 @@ export std::map<std::string, std::string> paletteToMap(
 }
 
 export std::string colorFromImage(const std::string& imagePath) {
-  cairo_surface_t* surface = nullptr;
-
-  std::string extension = std::filesystem::path(imagePath).extension().string();
-  std::transform(extension.begin(), extension.end(), extension.begin(),
-                 ::tolower);
-
-  if (extension == ".webp")
-    surface = createSurfaceFromWebP(imagePath);
-  else if (extension == ".jpg" || extension == ".jpeg")
-    surface = createSurfaceFromJpeg(imagePath);
-  else if (extension == ".png")
-    surface = createSurfaceFromPng(imagePath);
-  else {
-    std::println(std::cerr, "Unsupported image format: {}", extension);
-    return "";
-  }
-
-  cairo_status_t status = cairo_surface_status(surface);
-  if (status != CAIRO_STATUS_SUCCESS) {
-    std::println(std::cerr, "Unable to load image: {}: {}", imagePath,
-                 cairo_status_to_string(status));
-    cairo_surface_destroy(surface);
-    return "";
-  }
-
-  int width = cairo_image_surface_get_width(surface);
-  int height = cairo_image_surface_get_height(surface);
-  std::uint8_t* surface_data = cairo_image_surface_get_data(surface);
-  int stride = cairo_image_surface_get_stride(surface);
-
-  std::vector<std::uint32_t> pixels(width * height);
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      std::uint8_t* pixel = surface_data + y * stride + x * 4;
-      std::uint8_t b = pixel[0], g = pixel[1], r = pixel[2], a = pixel[3];
-      pixels[y * width + x] = (a << 24) | (r << 16) | (g << 8) | b;
-    }
-  }
+  cairo_surface_t* surface = loadImageSurface(imagePath);
+  if (!surface) return "";
+  std::string result = dominantColorFromSurface(surface, defaultColor);
   cairo_surface_destroy(surface);
-
-  return dominantColor(pixels, defaultColor);
+  return result;
 }
 
 export std::string generateJson(const MaterialColors::DynamicPalette& palette,
-                                bool dark, bool glass) {
+                                bool dark, bool glass,
+                                const std::string& sourceColor) {
   auto paletteMap = paletteToMap(palette, dark, glass);
   std::stringstream json;
   json << "{\n";
-  std::size_t count = 0;
-  for (const auto& [key, value] : paletteMap) {
-    json << "  \"" << key << "\": \"" << value << "\"";
-    if (++count < paletteMap.size()) json << ",";
-    json << "\n";
-  }
+  for (const auto& [key, value] : paletteMap)
+    json << "  \"" << key << "\": \"" << value << "\",\n";
+  json << "  \"sourceColor\": \"" << sourceColor << "\"\n";
   json << "}\n";
   return json.str();
 }

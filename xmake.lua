@@ -27,4 +27,5 @@ includes("extensions/launcher/xmake.lua")
 includes("extensions/panel/xmake.lua")
 includes("extensions/theme/xmake.lua")
 includes("extensions/media/xmake.lua")
+includes("extensions/desktop/xmake.lua")
 

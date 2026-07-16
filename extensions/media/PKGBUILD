@@ -16,5 +16,7 @@ build() {
 package() {
     cd "$startdir"
     install -Dm755 ../../build/media "$pkgdir/usr/bin/media"
+
+    xmake config --mode=debug
 }
 

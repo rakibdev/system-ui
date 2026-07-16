@@ -1,0 +1,25 @@
+pkgname=system-ui-panel
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Panel for system-ui"
+arch=('x86_64')
+license=('MPL-2.0')
+depends=('system-ui')
+makedepends=('xmake' 'clang')
+
+build() {
+  cd "$startdir"
+  export EXT_DIR="/usr/lib/panel"
+  xmake config --mode=release
+  xmake build panel
+}
+
+package() {
+  cd "$startdir"
+  install -Dm755 ../../build/panel.so                 "$pkgdir/usr/lib/panel/panel.so"
+  install -Dm644 default.css                          "$pkgdir/usr/lib/panel/default.css"
+  install -Dm644 assets/shaders/night-light.frag      "$pkgdir/usr/lib/panel/assets/shaders/night-light.frag"
+  install -Dm644 assets/shaders/reset.frag            "$pkgdir/usr/lib/panel/assets/shaders/reset.frag"
+
+  xmake config --mode=debug
+}

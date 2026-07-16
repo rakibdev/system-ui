@@ -1,0 +1,23 @@
+pkgname=system-ui-desktop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Desktop for system-ui"
+arch=('x86_64')
+license=('MPL-2.0')
+depends=('system-ui')
+makedepends=('xmake' 'clang')
+
+build() {
+  cd "$startdir"
+  export EXT_DIR="/usr/lib/desktop"
+  xmake config --mode=release
+  xmake build desktop
+}
+
+package() {
+  cd "$startdir"
+  install -Dm755 ../../build/desktop.so               "$pkgdir/usr/lib/desktop/desktop.so"
+  install -Dm644 default.css                          "$pkgdir/usr/lib/desktop/default.css"
+
+  xmake config --mode=debug
+}

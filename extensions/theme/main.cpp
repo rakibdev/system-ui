@@ -7,9 +7,9 @@ import generate;
 import std;
 
 void usage() {
-  std::println("  {:<38} {}", "--color <hex|image-path>", "");
-  std::println("  {:<38} {}", "  --color \"#ff5722\"", "");
-  std::println("  {:<38} {}", "  --color \"./image.png\"", "");
+  std::println("  {:<38} {}", "--source <hex|image-path>", "");
+  std::println("  {:<38} {}", "  --source \"#ff5722\"", "");
+  std::println("  {:<38} {}", "  --source \"./image.png\"", "");
   std::println("");
   std::println("  {:<38} {}", "--template <file>",
                "Template file with variables.");
@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  std::string colorValue = parser.value("--color", defaultColor);
+  std::string colorValue = parser.value("--source", defaultColor);
   std::string templatePath = parser.value("--template");
   bool darkMode = !parser.has("--light");
   bool glass = parser.has("--glass");
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
 
     std::print(std::cout, "{}", processTemplate(buffer.str(), palette, darkMode, glass));
   } else {
-    std::print(std::cout, "{}", generateJson(palette, darkMode, glass));
+    std::print(std::cout, "{}", generateJson(palette, darkMode, glass, sourceColor));
   }
 
   return 0;

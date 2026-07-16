@@ -1,0 +1,8 @@
+.clock .time {
+  font-size: 128px;
+  font-weight: bold;
+}
+
+.clock .date {
+  font-size: 32px;
+}

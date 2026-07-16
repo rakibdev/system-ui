@@ -19,7 +19,8 @@ class StorageManager {
     if (loaded) return content;
     if (std::filesystem::exists(file)) {
       std::string buffer{};
-      auto error = glz::read_file_json(content, file, buffer);
+      auto error = glz::read_file_json<glz::opts{.error_on_unknown_keys = false}>(
+          content, file, buffer);
       if (error)
         Log::error("StorageManager: Parse failed " + file + "\n" +
                    glz::format_error(error, buffer));

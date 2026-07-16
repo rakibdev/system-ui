@@ -1,3 +1,6 @@
+module;
+#include <glaze/glaze.hpp>
+
 export module config;
 
 import std;
@@ -18,6 +21,7 @@ export {
 
   struct ThemeData {
     bool darkMode = true;
+    std::string sourceColor;
   };
 
   struct Config {
@@ -29,4 +33,5 @@ export {
 }
 
 StorageManager<Config> systemUiConfig = StorageManager<Config>(CONFIG_FILE);
-StorageManager<ThemeData> themeData = StorageManager<ThemeData>(CONFIG_DIR + "/theme.json");
+StorageManager<ThemeData> themeData =
+    StorageManager<ThemeData>(CONFIG_DIR + "/theme.json");

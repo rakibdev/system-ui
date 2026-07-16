@@ -16,4 +16,6 @@ build() {
 package() {
     cd "$startdir"
     install -Dm755 ../../build/theme "$pkgdir/usr/bin/theme"
+
+    xmake config --mode=debug
 }

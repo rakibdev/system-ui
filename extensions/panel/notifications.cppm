@@ -12,6 +12,7 @@ import elements.window;
 import elements.events;
 import notifications;
 import transition;
+import log;
 
 export namespace Notifications {
 std::unique_ptr<NotificationManager> managerPtr;
@@ -25,12 +26,10 @@ struct NotificationItem : Box {
   Label title;
   std::optional<Label> description;
   const Notification* notificationData;
-  int index;
 
-  NotificationItem(const Notification& notification, int _index)
+  NotificationItem(const Notification& notification)
       : Box(GTK_ORIENTATION_HORIZONTAL),
-        notificationData(&notification),
-        index(_index) {
+        notificationData(&notification) {
     addClass("notification-item");
 
     icon.addClass("icon");
@@ -57,18 +56,29 @@ struct NotificationItem : Box {
     add(content);
 
     onPointerDown(widget, [this](double, double, guint) {
-      auto index = std::distance(
-          manager->list.begin(),
-          std::ranges::find_if(manager->list, [this](const Notification& n) {
-            return &n == notificationData;
-          }));
+      auto index = resolveIndex();
+      if (index < 0) return;
       if (notificationData && !notificationData->actions.empty())
         manager->invoke(index, notificationData->actions[0].id);
       else
         manager->remove(index, NotificationManager::RemoveReason::USER_DISMISSED);
     });
-    onHover(widget, [this] { manager->pause(index); });
-    onHoverOut(widget, [this] { manager->startAutoHide(index); });
+    onHover(widget, [this] {
+      auto index = resolveIndex();
+      if (index >= 0) manager->pause(index);
+    });
+    onHoverOut(widget, [this] {
+      auto index = resolveIndex();
+      if (index >= 0) manager->startAutoHide(index);
+    });
+  }
+
+  int resolveIndex() const {
+    auto it = std::ranges::find_if(manager->list, [this](const Notification& n) {
+      return &n == notificationData;
+    });
+    if (it == manager->list.end()) return -1;
+    return static_cast<int>(std::distance(manager->list.begin(), it));
   }
 };
 
@@ -92,14 +102,14 @@ void populatePopup() {
   notificationBox->gap(8);
   popupItems.clear();
   for (int i = manager->list.size() - 1; i >= 0; i--) {
-    auto& item = popupItems.emplace_back(manager->list[i], i);
+    auto& item = popupItems.emplace_back(manager->list[i]);
     notificationBox->add(item);
   }
   popupWindow->add(*notificationBox);
 }
 
 void showPopupWithoutTransition() {
-  popupWindow.emplace();
+  popupWindow.emplace(GTK_LAYER_SHELL_KEYBOARD_MODE_NONE, "panel");
   popupWindow->addClass("notification-popup");
   gtk_layer_set_anchor((GtkWindow*)popupWindow->widget,
                        GTK_LAYER_SHELL_EDGE_TOP, true);
@@ -114,7 +124,7 @@ void showPopupWithTransition() {
   if (isTransitioning) return;
   isTransitioning = true;
 
-  popupWindow.emplace();
+  popupWindow.emplace(GTK_LAYER_SHELL_KEYBOARD_MODE_NONE, "panel");
   popupWindow->addClass("notification-popup");
   gtk_layer_set_anchor((GtkWindow*)popupWindow->widget,
                        GTK_LAYER_SHELL_EDGE_TOP, true);

@@ -15,14 +15,20 @@ export struct Notification {
   std::string imagePath;
   int duration = 2500;
   guint timer = 0;
-  struct Action { std::string id; std::string label; };
+  struct Action {
+    std::string id;
+    std::string label;
+  };
   std::vector<Action> actions;
   enum class Urgency { LOW, NORMAL, CRITICAL };
   Urgency urgency = Urgency::NORMAL;
 };
 
 export enum class EventType { ADDED, REMOVED, CLEARED };
-export struct ChangeEvent { EventType type; uint index = 0; };
+export struct ChangeEvent {
+  EventType type;
+  uint index = 0;
+};
 
 export class NotificationManager {
   GDBusConnection* connection;
@@ -32,13 +38,16 @@ export class NotificationManager {
   static constexpr const char* DBUS_NAME = "org.freedesktop.Notifications";
 
   static void parseHints(GVariantIter* hints, Notification& notification) {
-    char* key; GVariant* value;
+    char* key;
+    GVariant* value;
     while (g_variant_iter_next(hints, "{&sv}", &key, &value)) {
       std::string k(key);
       if (k == "urgency") {
-        std::int8_t result = g_variant_get_uint32(value);
-        if (result == 0) notification.urgency = Notification::Urgency::LOW;
-        else if (result == 2) notification.urgency = Notification::Urgency::CRITICAL;
+        guint8 result = g_variant_get_byte(value);
+        if (result == 0)
+          notification.urgency = Notification::Urgency::LOW;
+        else if (result == 2)
+          notification.urgency = Notification::Urgency::CRITICAL;
       } else if (k == "desktop-entry")
         notification.appId = g_variant_get_string(value, nullptr);
       else if (k == "image-path")
@@ -47,7 +56,8 @@ export class NotificationManager {
     }
   }
 
-  static void busAcquired(GDBusConnection* connection, const gchar*, gpointer data) {
+  static void busAcquired(GDBusConnection* connection, const gchar*,
+                          gpointer data) {
     auto* self = static_cast<NotificationManager*>(data);
     static const std::string xml = R"(
 <node>
@@ -76,18 +86,21 @@ export class NotificationManager {
   </interface>
 </node>)";
 
-    GDBusNodeInfo* introspection = g_dbus_node_info_new_for_xml(xml.c_str(), nullptr);
+    GDBusNodeInfo* introspection =
+        g_dbus_node_info_new_for_xml(xml.c_str(), nullptr);
     GDBusInterfaceVTable table = {methods};
     GError* error = nullptr;
     g_dbus_connection_register_object(connection, DBUS_PATH,
-                                      introspection->interfaces[0], &table, self,
-                                      nullptr, &error);
+                                      introspection->interfaces[0], &table,
+                                      self, nullptr, &error);
     g_dbus_node_info_unref(introspection);
     if (error)
-      Log::error("Register bus " + std::string(DBUS_NAME) + ": " + error->message);
+      Log::error("Register bus " + std::string(DBUS_NAME) + ": " +
+                 error->message);
   }
 
-  static void busNameAcquired(GDBusConnection* connection, const gchar*, gpointer data) {
+  static void busNameAcquired(GDBusConnection* connection, const gchar*,
+                              gpointer data) {
     static_cast<NotificationManager*>(data)->connection = connection;
   }
 
@@ -95,8 +108,15 @@ export class NotificationManager {
     Log::info(std::string(name));
   }
 
-  static void methods(GDBusConnection*, const gchar*, const gchar*, const gchar*,
-                      const gchar* name, GVariant* parameters,
+  static void stopTimer(Notification& notification) {
+    if (notification.timer > 0) {
+      g_source_remove(notification.timer);
+      notification.timer = 0;
+    }
+  }
+
+  static void methods(GDBusConnection*, const gchar*, const gchar*,
+                      const gchar*, const gchar* name, GVariant* parameters,
                       GDBusMethodInvocation* invocation, gpointer data) {
     auto* self = static_cast<NotificationManager*>(data);
     std::string methodName(name);
@@ -104,13 +124,16 @@ export class NotificationManager {
       self->onNotify(parameters, invocation);
     } else if (methodName == "GetCapabilities") {
       GVariantBuilder* builder = g_variant_builder_new(G_VARIANT_TYPE("as"));
-      for (auto cap : {"body", "icon-static", "actions", "persistence", "body-markup", "body-hyperlinks"})
+      for (auto cap : {"body", "icon-static", "actions", "persistence",
+                       "body-markup", "body-hyperlinks"})
         g_variant_builder_add(builder, "s", cap);
-      g_dbus_method_invocation_return_value(invocation, g_variant_new("(as)", builder));
+      g_dbus_method_invocation_return_value(invocation,
+                                            g_variant_new("(as)", builder));
       g_variant_builder_unref(builder);
     } else if (methodName == "GetServerInformation") {
       g_dbus_method_invocation_return_value(
-          invocation, g_variant_new("(ssss)", "system-ui", "rakib", "0.0.0", "1.0.0"));
+          invocation,
+          g_variant_new("(ssss)", "system-ui", "rakib", "0.0.0", "1.0.0"));
     } else if (methodName == "CloseNotification") {
       uint index;
       g_variant_get(parameters, "(u)", &index);
@@ -131,7 +154,10 @@ export class NotificationManager {
   }
 
   ~NotificationManager() {
-    if (ownerId > 0) { g_bus_unown_name(ownerId); ownerId = 0; }
+    if (ownerId > 0) {
+      g_bus_unown_name(ownerId);
+      ownerId = 0;
+    }
     connection = nullptr;
   }
 
@@ -158,7 +184,7 @@ export class NotificationManager {
 
     if (index > 0 && index <= list.size()) {
       auto replaceIndex = index - 1;
-      if (list[replaceIndex].timer > 0) g_source_remove(list[replaceIndex].timer);
+      stopTimer(list[replaceIndex]);
       list[replaceIndex] = notification;
       index = replaceIndex;
     } else {
@@ -173,14 +199,14 @@ export class NotificationManager {
   }
 
   void invoke(uint index, const std::string& action) {
-    g_dbus_connection_emit_signal(connection, nullptr, DBUS_PATH, DBUS_NAME,
-                                  "ActionInvoked",
-                                  g_variant_new("(us)", index, action.c_str()), nullptr);
+    g_dbus_connection_emit_signal(
+        connection, nullptr, DBUS_PATH, DBUS_NAME, "ActionInvoked",
+        g_variant_new("(us)", index, action.c_str()), nullptr);
   }
 
   void remove(uint index, RemoveReason reason) {
     if (index >= list.size()) return;
-    if (list[index].timer > 0) { g_source_remove(list[index].timer); list[index].timer = 0; }
+    stopTimer(list[index]);
     auto id = index + 1;
     list.erase(list.begin() + index);
     g_dbus_connection_emit_signal(connection, nullptr, DBUS_PATH, DBUS_NAME,
@@ -190,30 +216,30 @@ export class NotificationManager {
   }
 
   void clear() {
-    for (uint i = 0; i < list.size(); i++)
-      remove(i, RemoveReason::USER_DISMISSED);
+    while (!list.empty()) remove(list.size() - 1, RemoveReason::USER_DISMISSED);
   }
 
   void pause(uint index) {
     if (index >= list.size()) return;
-    if (list[index].timer > 0) { g_source_remove(list[index].timer); list[index].timer = 0; }
+    stopTimer(list[index]);
   }
 
   void startAutoHide(uint index) {
     if (index >= list.size()) return;
-    if (list[index].timer > 0) g_source_remove(list[index].timer);
+    stopTimer(list[index]);
     if (list[index].duration > 0) {
       list[index].timer = g_timeout_add(
           list[index].duration,
           [](gpointer data) -> gboolean {
-            auto* info = static_cast<std::pair<NotificationManager*, uint>*>(data);
+            auto* info =
+                static_cast<std::pair<NotificationManager*, uint>*>(data);
             auto* manager = info->first;
             uint i = info->second;
+            delete info;
             if (i < manager->list.size()) {
               manager->list[i].timer = 0;
               manager->remove(i, RemoveReason::EXPIRED);
             }
-            delete info;
             return G_SOURCE_REMOVE;
           },
           new std::pair<NotificationManager*, uint>(this, index));

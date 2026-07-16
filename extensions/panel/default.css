@@ -52,8 +52,6 @@
   min-height: 48px;
   border-radius: 8px;
   transition: border-radius 0.2s;
-  background-color: @card;
-  color: @foreground;
 }
 
 .quick-settings .player.playing .play-pause {
@@ -123,6 +121,7 @@
 .audio-trough trough,
 .quick-settings trough {
   min-height: 40px;
-  background-color: @card;
+  background-color: @hover;
 }
+
 

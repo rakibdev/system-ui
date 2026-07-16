@@ -6,6 +6,6 @@ target("theme")
 
     add_files("main.cpp", "*.cppm")
     add_files(path.join(os.projectdir(), "libs/material-colors/*.cppm"))
-    add_files(sdk("utils/argparser.cppm"), sdk("utils/log.cppm"), sdk("utils/image.cppm"))
+    add_files(sdk("utils/argparser.cppm"), sdk("utils/log.cppm"), sdk("utils/image.cppm"), sdk("utils/quantize.cppm"))
 
     add_packages("cairo", "libwebp", "libjpeg", "librsvg-2.0")

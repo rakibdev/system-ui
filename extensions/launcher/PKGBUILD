@@ -1,0 +1,23 @@
+pkgname=system-ui-launcher
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Launcher for system-ui"
+arch=('x86_64')
+license=('MPL-2.0')
+depends=('system-ui')
+makedepends=('xmake' 'clang')
+
+build() {
+  cd "$startdir"
+  export EXT_DIR="/usr/lib/launcher"
+  xmake config --mode=release
+  xmake build launcher
+}
+
+package() {
+  cd "$startdir"
+  install -Dm755 ../../build/launcher.so "$pkgdir/usr/lib/launcher/launcher.so"
+  install -Dm644 default.css             "$pkgdir/usr/lib/launcher/default.css"
+
+  xmake config --mode=debug
+}

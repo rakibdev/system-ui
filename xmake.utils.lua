@@ -37,5 +37,6 @@ function set_extension(extName)
 	-- not each package's own cxxflags (e.g. gtk4 adds -mfpmath=sse/-msse/-msse2/-pthread,
 	add_packages("gtk4", "gtk4-layer-shell", "libpipewire-0.3", "glaze", "cairo", "libwebp", "libjpeg", "librsvg-2.0")
 
-	add_defines('EXT_DIR="' .. os.scriptdir() .. '"')
+	local envExtDir = os.getenv("EXT_DIR")
+	add_defines('EXT_DIR="' .. (envExtDir or os.scriptdir()) .. '"')
 end
